@@ -5,7 +5,7 @@ import {
   Trees, Footprints, CircleHelp, ChevronRight, RotateCcw, ShieldCheck,
   Menu, X, Clock3, Flame, Gem, Leaf, Mountain, TreePine
 } from 'lucide-react'
-import { supabase } from './lib/supabase'
+import { supabase, supabaseConfigMissing } from './lib/supabase'
 
 type Tile = {
   id: number
