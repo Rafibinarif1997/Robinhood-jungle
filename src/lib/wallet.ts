@@ -2,17 +2,16 @@
 import { createAppKit } from '@reown/appkit/react'
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
 import type { AppKitNetwork } from '@reown/appkit/networks'
+import { QueryClient } from '@tanstack/react-query'
 import { defineChain } from 'viem'
 
 const projectId = import.meta.env.VITE_REOWN_PROJECT_ID?.trim()
 
 if (!projectId) {
-  throw new Error(
-    'Missing VITE_REOWN_PROJECT_ID. Check GitHub Actions variables.'
-  )
+  throw new Error('Missing VITE_REOWN_PROJECT_ID')
 }
 
-export const robinhoodTestnet = defineChain({
+const robinhoodTestnet = defineChain({
   id: 46630,
   name: 'Robinhood Chain Testnet',
   nativeCurrency: {
@@ -27,7 +26,7 @@ export const robinhoodTestnet = defineChain({
   },
   blockExplorers: {
     default: {
-      name: 'Robinhood Testnet Explorer',
+      name: 'Robinhood Explorer',
       url: 'https://explorer.testnet.chain.robinhood.com',
     },
   },
@@ -43,17 +42,16 @@ export const wagmiAdapter = new WagmiAdapter({
   networks,
 })
 
-export const queryClient = new (await import('@tanstack/react-query'))
-  .QueryClient()
+export const queryClient = new QueryClient()
 
-export const appKit = createAppKit({
+createAppKit({
   adapters: [wagmiAdapter],
   networks,
   projectId,
   defaultNetwork: robinhoodTestnet,
   metadata: {
     name: 'ETH JUNGLE',
-    description: 'Explore the jungle on Robinhood Chain',
+    description: 'Explore ETH JUNGLE on Robinhood Chain',
     url: 'https://rafibinarif1997.github.io',
     icons: [],
   },
