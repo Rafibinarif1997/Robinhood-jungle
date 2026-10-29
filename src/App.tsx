@@ -69,7 +69,7 @@ export default function App() {
     let active = true
 
     async function checkSupabase() {
-      if (!supabase) {
+      if (supabaseConfigMissing || !supabase) {
         if (active) {
           setDbStatus('missing')
           setDbMessage('Supabase configuration is missing')
