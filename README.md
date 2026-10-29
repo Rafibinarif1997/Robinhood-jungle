@@ -41,3 +41,13 @@ In `vite.config.ts`, change `base: '/'` to `base: '/YOUR-REPOSITORY-NAME/'` for 
 4. Implement and test EIP-712 signed claims in a Solidity contract.
 5. Deploy to Robinhood Chain testnet (chain ID `46630`) and test prize rollover/payout.
 6. Complete security review before mainnet use.
+
+
+## Supabase preparation (schema only)
+1. Create a Supabase project.
+2. Open **SQL Editor** in the Supabase dashboard.
+3. Paste and run `supabase/schema.sql`.
+4. This only prepares the database schema. The frontend is not yet connected.
+5. Do not add a service-role key to the frontend. The secure answer checking,
+   rate limiting, atomic winner selection, and EIP-712 signing must be implemented
+   in trusted server-side functions before using real prizes.

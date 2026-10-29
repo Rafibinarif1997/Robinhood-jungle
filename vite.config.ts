@@ -1,8 +1,8 @@
-
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-
 export default defineConfig({
   plugins: [react()],
-  base: '/Robinhood-jungle/',
+  // For GitHub Pages project sites, change this to '/REPOSITORY-NAME/'
+  // before building. Use '/' for a custom domain or user site.
+  base: '/',
 })
