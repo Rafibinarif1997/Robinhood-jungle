@@ -26,6 +26,20 @@ jobs:
           node-version: 22
       
 
+      - name: Check Supabase variable availability
+        run: |
+          if [ -n "$VITE_SUPABASE_URL" ]; then
+            echo "SUPABASE_URL_PRESENT=true"
+          else
+            echo "SUPABASE_URL_PRESENT=false"
+          fi
+
+          if [ -n "$VITE_SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "SUPABASE_KEY_PRESENT=true"
+          else
+            echo "SUPABASE_KEY_PRESENT=false"
+          fi
+
       - run: npm install
       - run: npm run build
 
