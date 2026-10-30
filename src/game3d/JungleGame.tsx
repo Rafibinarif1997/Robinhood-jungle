@@ -34,6 +34,7 @@ function Explorer({ input, setPosition, setNearby, onFound, found, obstacles }: 
   const uiClock = useRef(0)
   const wasJumping = useRef(false)
   const wasInteracting = useRef(false)
+  const nearbyId = useRef('')
 
   useFrame((state, delta) => {
     if (!root.current) return
@@ -63,7 +64,8 @@ function Explorer({ input, setPosition, setNearby, onFound, found, obstacles }: 
     state.camera.position.lerp(desired, 1 - Math.exp(-5 * move))
     state.camera.lookAt(cameraTarget.x, cameraTarget.y + 1.25, cameraTarget.z)
     const nearby = pointsOfInterest.find(point => !found.includes(point.id) && Math.hypot(root.current!.position.x - point.position[0], root.current!.position.z - point.position[2]) < 2.8)
-    setNearby(nearby?.name ?? '')
+    const nextNearby = nearby?.name ?? ''
+    if (nearbyId.current !== nextNearby) { nearbyId.current = nextNearby; setNearby(nextNearby) }
     if (input.interact && !wasInteracting.current && nearby) onFound(nearby.id)
     wasInteracting.current = input.interact
     uiClock.current += move
