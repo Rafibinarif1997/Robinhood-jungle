@@ -83,7 +83,8 @@ function PixelExplorer({ input, onPosition }: { input: Input; onPosition:(p:V)=>
     target.set(p.x,p.y+1.1,p.z)
     state.camera.position.lerp(new THREE.Vector3(p.x+dir.x*1.2,p.y+6.2,p.z+10),1-Math.exp(-3.5*dt))
     state.camera.lookAt(target)
-    reportTimer.current+=dt\n    if(reportTimer.current>.12){reportTimer.current=0;onPosition([p.x,p.y,p.z])}
+    reportTimer.current+=dt
+    if(reportTimer.current>.12){reportTimer.current=0;onPosition([p.x,p.y,p.z])}
   })
   return <group ref={root}>
     <group ref={body}>
