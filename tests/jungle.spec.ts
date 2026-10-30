@@ -28,7 +28,7 @@ test('3D jungle page renders the explorer scene and objectives', async ({ page }
   await expect(page.locator('.jungle3d-head h2')).toContainText('ETH JUNGLE')
   await expect(page.locator('.jungle3d-stage canvas')).toBeVisible()
   await expect(page.locator('.j3d-objective')).toContainText('JUNGLE EXPEDITION')
-  await expect(page.locator('.j3d-note')).toContainText('0/3 relics')
+  await expect(page.locator('.j3d-gamebar')).toContainText('0/3')
 })
 
 test('mobile layout exposes touch controls', async ({ page }, testInfo) => {
