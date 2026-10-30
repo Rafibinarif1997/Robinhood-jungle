@@ -27,7 +27,5 @@
     "typescript": "5.9.3",
     "vite": "^6.0.5"
   },
-  "overrides": {
-    "@wagmi/core": "2.22.1"
-  }
+  
 }
