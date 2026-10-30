@@ -5,234 +5,59 @@ import type { PointerEvent } from 'react'
 import * as THREE from 'three'
 import './jungle-game.css'
 
-type Input = { forward: number; side: number; jump: boolean; interact: boolean }
-const pointsOfInterest = [{ id: 'ruins', name: 'Ancient Ruins', position: [-10, 0, -10] as [number, number, number] }, { id: 'cave', name: 'Hidden Cave', position: [13, 0, 8] as [number, number, number] }]
+type V=[number,number,number]
+type Input={forward:number;side:number;jump:boolean;interact:boolean;sprint:boolean}
+const relics=[{id:'sun',name:'Sun Relic',p:[-15,0,-4] as V},{id:'moon',name:'Moon Relic',p:[12,0,-13] as V},{id:'root',name:'Root Relic',p:[14,0,14] as V}]
+const altar:V=[-10,0,-10], chest:V=[0,0,-20]
 
-function Tree({ position, scale = 1 }: { position: [number, number, number]; scale?: number }) {
-  return (
-    <group position={position} scale={scale}>
-      <mesh position={[0, 1.25, 0]} castShadow>
-        <cylinderGeometry args={[0.13, 0.2, 2.5, 7]} />
-        <meshStandardMaterial color="#60452b" roughness={1} />
-      </mesh>
-      {[0, 1, 2].map((n) => (
-        <mesh key={n} position={[0, 2.1 + n * 0.48, 0]} castShadow>
-          <coneGeometry args={[1.05 - n * 0.19, 1.65, 7]} />
-          <meshStandardMaterial color={n === 0 ? '#174d2b' : n === 1 ? '#216238' : '#347b43'} roughness={1} />
-        </mesh>
-      ))}
-    </group>
-  )
+function Tree({p,scale=1}:{p:V;scale?:number}){return <group position={p} scale={scale}><mesh position={[0,1.3,0]} castShadow><cylinderGeometry args={[.16,.25,2.6,7]}/><meshStandardMaterial color="#624329"/></mesh>{[0,1,2].map((n)=><mesh key={n} position={[0,2+n*.55,0]} castShadow><coneGeometry args={[1.15-n*.2,1.7,7]}/><meshStandardMaterial color={['#174a2a','#216338','#347d43'][n]}/></mesh>)}</group>}
+function Relic({p,found}:{p:V;found:boolean}){const ref=useRef<THREE.Group>(null);useFrame(({clock})=>{if(ref.current){ref.current.rotation.y=clock.elapsedTime;ref.current.position.y=1+Math.sin(clock.elapsedTime*2)*.18}});if(found)return null;return <group ref={ref} position={p}><mesh><octahedronGeometry args={[.48]}/><meshStandardMaterial color="#a8ffe0" emissive="#21d985" emissiveIntensity={2}/></mesh><mesh><torusGeometry args={[.8,.04,8,24]}/><meshStandardMaterial color="#7fffc0" emissive="#25e88b"/></mesh><pointLight color="#42ffad" intensity={1.5} distance={5}/></group>}
+function Boar({p,phase}:{p:V;phase:number}){const ref=useRef<THREE.Group>(null);useFrame(({clock})=>{if(!ref.current)return;const t=clock.elapsedTime*.48+phase;ref.current.position.x=p[0]+Math.sin(t)*3;ref.current.position.z=p[2]+Math.cos(t*.8)*2;ref.current.rotation.y=Math.atan2(Math.cos(t),-Math.sin(t))});return <group ref={ref} position={p}><mesh position={[0,.62,0]} castShadow><capsuleGeometry args={[.48,.8,4,8]}/><meshStandardMaterial color="#70452e"/></mesh><mesh position={[0,.9,-.6]}><sphereGeometry args={[.37,12,10]}/><meshStandardMaterial color="#86543a"/></mesh>{[-.23,.23].map(x=><mesh key={x} position={[x,.22,.1]}><cylinderGeometry args={[.09,.1,.4,6]}/><meshStandardMaterial color="#38281e"/></mesh>)}</group>}
+function Explorer({input,found,chestOpen,onCollect,onChest,onDamage,setPos,setNear}:{input:Input;found:string[];chestOpen:boolean;onCollect:(s:string)=>void;onChest:()=>void;onDamage:()=>void;setPos:(p:V)=>void;setNear:(s:string)=>void}){
+ const root=useRef<THREE.Group>(null),vel=useRef(0),jump=useRef(false),interact=useRef(false),hurt=useRef(0),clock=useRef(0)
+ const dir=useMemo(()=>new THREE.Vector3(),[]),target=useMemo(()=>new THREE.Vector3(),[]),offset=useMemo(()=>new THREE.Vector3(0,5.3,8.8),[])
+ useFrame((state,delta)=>{if(!root.current)return;const dt=Math.min(delta,.04),p=root.current.position;dir.set(input.side,0,input.forward).normalize()
+ if(Math.abs(input.forward)+Math.abs(input.side)>.05){const speed=input.sprint?7:4.7,nx=p.x+dir.x*speed*dt,nz=p.z+dir.z*speed*dt
+ const blocks:V[]=[[-21,0,-17],[-18,0,9],[-7,0,17],[4,0,19],[20,0,4],[20,0,-18],[-10,0,-10],[-11.7,0,-10],[-8.3,0,-10],[-10,0,-11.7],[-10,0,-8.3],[7,0,-3],[9,0,-3],...Array.from({length:24},(_,i)=>{const a=i*2.399,r=18+(i%4)*1.1;return [Math.cos(a)*r,0,Math.sin(a)*r] as V})]
+ if(!blocks.some(([x,,z])=>Math.hypot(nx-x,nz-z)<1.05)){p.x=nx;p.z=nz}root.current.rotation.y=Math.atan2(dir.x,dir.z)}
+ p.x=THREE.MathUtils.clamp(p.x,-24,24);p.z=THREE.MathUtils.clamp(p.z,-24,24)
+ if(input.jump&&!jump.current&&p.y<.03)vel.current=7;jump.current=input.jump;vel.current-=18*dt;p.y=Math.max(0,p.y+vel.current*dt);if(!p.y)vel.current=0
+ const t=state.clock.elapsedTime*.48,beasts=[[-3+Math.sin(t)*3,0,7+Math.cos(t*.8)*2],[15+Math.sin(t+2.4)*3,0,-3+Math.cos((t+2.4)*.8)*2]]
+ hurt.current-=dt;if(p.y<.65&&hurt.current<=0&&beasts.some(([x,,z])=>Math.hypot(p.x-x,p.z-z)<1.35)){onDamage();hurt.current=1.5}
+ const r=relics.find(x=>!found.includes(x.id)&&Math.hypot(p.x-x.p[0],p.z-x.p[2])<2.1),a=Math.hypot(p.x-altar[0],p.z-altar[2])<2.5,c=Math.hypot(p.x-chest[0],p.z-chest[2])<2.6
+ const prompt=r?'Collect '+r.name:a?(found.length===3?'Activate ancient altar':`Altar locked · ${found.length}/3 relics`):c?(chestOpen?'Treasure claimed!':'Sealed treasure chest'):''
+ setNear(prompt);if(input.interact&&!interact.current){if(r)onCollect(r.id);else if(a&&found.length===3)onChest()}interact.current=input.interact
+ target.copy(p);state.camera.position.lerp(target.clone().add(offset),1-Math.exp(-4.5*dt));state.camera.lookAt(p.x,p.y+1.2,p.z)
+ clock.current+=dt;if(clock.current>.12){clock.current=0;setPos([p.x,p.y,p.z])}
+ })
+ return <group ref={root}><mesh position={[0,1,0]} castShadow><capsuleGeometry args={[.34,.78,5,9]}/><meshStandardMaterial color="#d18b52"/></mesh><mesh position={[0,1.78,0]} castShadow><sphereGeometry args={[.29,16,12]}/><meshStandardMaterial color="#d9a16b"/></mesh><mesh position={[0,1.08,-.32]}><boxGeometry args={[.52,.55,.22]}/><meshStandardMaterial color="#bd4f27"/></mesh><mesh position={[0,1.45,.03]}><boxGeometry args={[.68,.13,.52]}/><meshStandardMaterial color="#35291f"/></mesh>{[-.16,.16].map(x=><mesh key={x} position={[x,.32,0]}><boxGeometry args={[.17,.5,.2]}/><meshStandardMaterial color="#283a2d"/></mesh>)}</group>
 }
-
-function Explorer({ input, setPosition, setNearby, onFound, found, obstacles }: { input: Input; setPosition: (p: [number, number, number]) => void; setNearby: (name: string) => void; onFound: (id: string) => void; found: string[]; obstacles: [number, number, number][] }) {
-  const root = useRef<THREE.Group>(null)
-  const velocity = useRef(0)
-  const cameraTarget = useMemo(() => new THREE.Vector3(), [])
-  const direction = useMemo(() => new THREE.Vector3(), [])
-  const cameraOffset = useMemo(() => new THREE.Vector3(0, 4.1, 7.5), [])
-  const uiClock = useRef(0)
-  const wasJumping = useRef(false)
-  const wasInteracting = useRef(false)
-  const nearbyId = useRef('')
-
-  useFrame((state, delta) => {
-    if (!root.current) return
-    const move = Math.min(delta, 0.04)
-    const moving = input.forward !== 0 || input.side !== 0
-    const speed = 4.2
-    direction.set(input.side, 0, input.forward).normalize()
-    if (moving) {
-      const nextX = root.current.position.x + direction.x * speed * move
-      const nextZ = root.current.position.z + direction.z * speed * move
-      const blocked = obstacles.some(([ox, , oz]) => Math.hypot(nextX - ox, nextZ - oz) < 0.9)
-      if (!blocked) {
-        root.current.position.x = nextX
-        root.current.position.z = nextZ
-      }
-      root.current.rotation.y = Math.atan2(direction.x, direction.z)
-    }
-    root.current.position.x = THREE.MathUtils.clamp(root.current.position.x, -23, 23)
-    root.current.position.z = THREE.MathUtils.clamp(root.current.position.z, -23, 23)
-    if (input.jump && !wasJumping.current && root.current.position.y <= 0.02) velocity.current = 6
-    wasJumping.current = input.jump
-    velocity.current -= 16 * move
-    root.current.position.y = Math.max(0, root.current.position.y + velocity.current * move)
-    if (root.current.position.y === 0) velocity.current = 0
-    cameraTarget.copy(root.current.position)
-    const desired = cameraTarget.clone().add(cameraOffset)
-    state.camera.position.lerp(desired, 1 - Math.exp(-5 * move))
-    state.camera.lookAt(cameraTarget.x, cameraTarget.y + 1.25, cameraTarget.z)
-    const nearby = pointsOfInterest.find(point => !found.includes(point.id) && Math.hypot(root.current!.position.x - point.position[0], root.current!.position.z - point.position[2]) < 2.8)
-    const nextNearby = nearby?.name ?? ''
-    if (nearbyId.current !== nextNearby) { nearbyId.current = nextNearby; setNearby(nextNearby) }
-    if (input.interact && !wasInteracting.current && nearby) onFound(nearby.id)
-    wasInteracting.current = input.interact
-    uiClock.current += move
-    if (uiClock.current > 0.15) {
-      uiClock.current = 0
-      setPosition([root.current.position.x, root.current.position.y, root.current.position.z])
-    }
-  })
-
-  return (
-    <group ref={root}>
-      <mesh position={[0, 1.05, 0]} castShadow>
-        <capsuleGeometry args={[0.38, 0.85, 5, 8]} />
-        <meshStandardMaterial color="#c68b52" roughness={0.85} />
-      </mesh>
-      <mesh position={[0, 1.85, 0]} castShadow>
-        <sphereGeometry args={[0.31, 16, 12]} />
-        <meshStandardMaterial color="#d9a16b" />
-      </mesh>
-      <mesh position={[0, 1.12, -0.38]} castShadow>
-        <boxGeometry args={[0.48, 0.58, 0.2]} />
-        <meshStandardMaterial color="#a34e26" />
-      </mesh>
-      <mesh position={[-0.17, 0.35, 0]} castShadow><boxGeometry args={[0.18, 0.55, 0.2]} /><meshStandardMaterial color="#293c2e" /></mesh>
-      <mesh position={[0.17, 0.35, 0]} castShadow><boxGeometry args={[0.18, 0.55, 0.2]} /><meshStandardMaterial color="#293c2e" /></mesh>
-    </group>
-  )
-}
-
-function World({ input, setPosition, setNearby, onFound, found }: { input: Input; setPosition: (p: [number, number, number]) => void; setNearby: (name: string) => void; onFound: (id: string) => void; found: string[] }) {
-  const trees = useMemo(() => Array.from({ length: 95 }, (_, i) => {
-    const angle = i * 2.399
-    const radius = 7 + (i % 9) * 1.8
-    return [Math.cos(angle) * radius, 0, Math.sin(angle) * radius] as [number, number, number]
-  }), [])
-  return (
-    <>
-      <Sky sunPosition={[80, 25, 40]} turbidity={9} rayleigh={2} />
-      <ambientLight intensity={0.7} color="#b6d7ad" />
-      <directionalLight position={[12, 18, 8]} intensity={1.5} castShadow shadow-mapSize={[1024, 1024]} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.08, 0]} receiveShadow>
-        <planeGeometry args={[100, 100]} />
-        <meshStandardMaterial color="#244b2b" roughness={1} />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.045, 0]}>
-        <circleGeometry args={[4.5, 48]} />
-        <meshStandardMaterial color="#9b8051" roughness={1} />
-      </mesh>
-      {/* A shallow river cuts through the western side of the clearing. */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-6, -0.025, 0]} receiveShadow>
-        <planeGeometry args={[4.2, 54, 1, 24]} />
-        <meshStandardMaterial color="#246f78" roughness={0.22} metalness={0.12} />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-8.2, -0.035, 0]}>
-        <planeGeometry args={[0.45, 54]} />
-        <meshStandardMaterial color="#526d3d" roughness={1} />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-3.8, -0.035, 0]}>
-        <planeGeometry args={[0.45, 54]} />
-        <meshStandardMaterial color="#526d3d" roughness={1} />
-      </mesh>
-      {/* Timber crossing: deck, individual boards, and simple hand rails. */}
-      <group position={[-6, 0.28, 0]}>
-        <mesh position={[0, 0, 0]} castShadow receiveShadow>
-          <boxGeometry args={[6.1, 0.22, 1.65]} />
-          <meshStandardMaterial color="#76502f" roughness={0.95} />
-        </mesh>
-        {Array.from({ length: 11 }, (_, i) => (
-          <mesh key={i} position={[-2.7 + i * 0.54, 0.13, 0]} castShadow>
-            <boxGeometry args={[0.48, 0.07, 1.72]} />
-            <meshStandardMaterial color={i % 2 ? '#9a7044' : '#86603a'} roughness={1} />
-          </mesh>
-        ))}
-        {[-0.72, 0.72].map((z) => (
-          <group key={z}>
-            {[-2.65, 0, 2.65].map((x) => (
-              <mesh key={x} position={[x, 0.72, z]} castShadow>
-                <boxGeometry args={[0.16, 1.25, 0.16]} />
-                <meshStandardMaterial color="#503923" roughness={1} />
-              </mesh>
-            ))}
-            <mesh position={[0, 1.22, z]} castShadow>
-              <boxGeometry args={[5.55, 0.16, 0.16]} />
-              <meshStandardMaterial color="#65482d" roughness={1} />
-            </mesh>
-          </group>
-        ))}
-      </group>
-      {trees.map((p, i) => <Tree key={i} position={p} scale={0.8 + (i % 4) * 0.16} />)}
-      <group position={[-10, 0, -10]}>
-        <mesh position={[0, 0.55, 0]} castShadow><boxGeometry args={[2.2, 1.1, 1.8]} /><meshStandardMaterial color="#777d68" roughness={1} /></mesh>
-        <mesh position={[0, 1.2, 0]}><octahedronGeometry args={[0.48, 0]} /><meshStandardMaterial color={found.includes('ruins') ? '#a9ffc4' : '#4be58a'} emissive="#1a9b50" emissiveIntensity={1.2} /></mesh>
-        <mesh position={[0, 0.08, 0]}><cylinderGeometry args={[1.5, 1.7, 0.16, 8]} /><meshStandardMaterial color="#424d3e" /></mesh>
-      </group>
-      <group position={[13, 0, 8]}>
-        <mesh position={[-1, 1.2, 0]}><cylinderGeometry args={[0.35, 0.5, 2.4, 8]} /><meshStandardMaterial color="#5c6758" /></mesh>
-        <mesh position={[1, 1.2, 0]}><cylinderGeometry args={[0.35, 0.5, 2.4, 8]} /><meshStandardMaterial color="#5c6758" /></mesh>
-        <mesh position={[0, 2.35, 0]}><boxGeometry args={[2.4, 0.45, 0.65]} /><meshStandardMaterial color="#65705c" /></mesh>
-        <mesh position={[0, 0.1, -0.05]}><circleGeometry args={[1.1, 24]} /><meshBasicMaterial color="#09150e" /></mesh>
-        <pointLight position={[0, 1, 1]} color="#64e89b" intensity={found.includes('cave') ? 1.4 : 0.5} distance={5} />
-      </group>
-      <group position={[8, 0, -8]}>
-        <mesh position={[0, 0.3, 0]} castShadow><dodecahedronGeometry args={[1.1, 0]} /><meshStandardMaterial color="#68766a" roughness={1} /></mesh>
-        <mesh position={[2, 0.22, -1.3]} castShadow><dodecahedronGeometry args={[0.8, 0]} /><meshStandardMaterial color="#526653" roughness={1} /></mesh>
-      </group>
-      <Explorer input={input} setPosition={setPosition} setNearby={setNearby} onFound={onFound} found={found} obstacles={[...trees, [8, 0, -8], [10, 0, -9.3], [-10, 0, -10], [13, 0, 8]]} />
-    </>
-  )
-}
-
-export default function JungleGame() {
-  const [input, setInput] = useState<Input>({ forward: 0, side: 0, jump: false, interact: false })
-  const [nearby, setNearby] = useState('')
-  const [found, setFound] = useState<string[]>([])
-  const [message, setMessage] = useState('Explore the jungle and look for glowing landmarks.')
-  const [position, setPosition] = useState<[number, number, number]>([0, 0, 0])
-  const [joystick, setJoystick] = useState({ x: 0, y: 0 })
-  const keys = useRef<Record<string, boolean>>({})
-  const joystickRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault()
-      keys.current[e.key.toLowerCase()] = true
-    }
-    const up = (e: KeyboardEvent) => { keys.current[e.key.toLowerCase()] = false }
-    const tick = () => setInput(v => ({
-      ...v,
-      forward: (keys.current.w || keys.current.arrowup ? -1 : 0) + (keys.current.s || keys.current.arrowdown ? 1 : 0) - joystick.y,
-      side: (keys.current.d || keys.current.arrowright ? 1 : 0) - (keys.current.a || keys.current.arrowleft ? 1 : 0) + joystick.x,
-      jump: !!keys.current[' '],
-      interact: !!keys.current.e,
-    }))
-    window.addEventListener('keydown', down)
-    window.addEventListener('keyup', up)
-    const timer = window.setInterval(tick, 40)
-    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.clearInterval(timer) }
-  }, [joystick])
-
-  const moveStick = (e: PointerEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const dx = (e.clientX - rect.left - rect.width / 2) / (rect.width / 2)
-    const dy = (e.clientY - rect.top - rect.height / 2) / (rect.height / 2)
-    const length = Math.max(1, Math.hypot(dx, dy))
-    setJoystick({ x: dx / length, y: dy / length })
-  }
-
-  return (
-    <section className="jungle3d-wrap">
-      <div className="jungle3d-head">
-        <div><span className="j3d-eyebrow">LIVE 3D PROTOTYPE</span><h2>THE EMERALD <span>WILDS</span></h2><p>Explore the jungle. Find the hidden ruins.</p></div>
-        <div className="j3d-coords">X {position[0].toFixed(1)} · Z {position[2].toFixed(1)}</div>
-      </div>
-      <div className="jungle3d-stage">
-        <Canvas shadows camera={{ position: [0, 4, 8], fov: 55 }} dpr={[1, 1.5]}>
-          <color attach="background" args={['#9ab89a']} />
-          <fog attach="fog" args={['#9ab89a', 18, 58]} />
-          <World input={input} setPosition={setPosition} setNearby={setNearby} onFound={id => { setFound(prev => prev.includes(id) ? prev : [...prev, id]); setMessage(id === 'ruins' ? 'Ancient Ruins discovered! A glowing relic has been recorded.' : 'Hidden Cave discovered! You found an old jungle passage.') }} found={found} />
-        </Canvas>
-        <div className="j3d-hud"><span>WASD / ARROWS TO MOVE</span><span>SPACE TO JUMP · E TO SEARCH</span></div>
-        <div className="j3d-objective"><strong>{nearby ? nearby.toUpperCase() : "JUNGLE EXPEDITION"}</strong><span>{nearby ? "Press E or SEARCH to investigate" : found.length + "/2 discoveries found"}</span>{nearby && <button onPointerDown={() => { keys.current.e = true }} onPointerUp={() => { keys.current.e = false }} onPointerLeave={() => { keys.current.e = false }}>SEARCH</button>}</div>
-        <div className="j3d-mobile-controls">
-          <div ref={joystickRef} className="j3d-joystick" onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); moveStick(e) }} onPointerMove={e => { if (e.buttons) moveStick(e) }} onPointerUp={() => setJoystick({ x: 0, y: 0 })} onPointerCancel={() => setJoystick({ x: 0, y: 0 })}><span /></div>
-          <button className="j3d-jump" onPointerDown={() => setInput(v => ({ ...v, jump: true }))} onPointerUp={() => setInput(v => ({ ...v, jump: false }))} onPointerLeave={() => setInput(v => ({ ...v, jump: false }))}>JUMP</button>
-        </div>
-      </div>
-      <p className="j3d-note">{message} · {found.length}/2 discovered · No wallet transaction or prize claim is enabled.</p>
-    </section>
-  )
+function World(props:{input:Input;found:string[];chestOpen:boolean;onCollect:(s:string)=>void;onChest:()=>void;onDamage:()=>void;setPos:(p:V)=>void;setNear:(s:string)=>void}){
+ const trees=useMemo(()=>Array.from({length:42},(_,i)=>{const a=i*2.399,r=18+(i%4)*1.1;return [Math.cos(a)*r,0,Math.sin(a)*r] as V}),[])
+ return <><Sky sunPosition={[70,28,25]} turbidity={8}/><ambientLight intensity={.7} color="#b9d9b1"/><directionalLight position={[10,20,7]} intensity={1.7} castShadow/>
+ <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.08,0]} receiveShadow><planeGeometry args={[100,100]}/><meshStandardMaterial color="#244b2b"/></mesh>
+ <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.035,0]}><circleGeometry args={[4.8,48]}/><meshStandardMaterial color="#a58a58"/></mesh>
+ <mesh rotation={[-Math.PI/2,0,0]} position={[-6,-.025,0]}><planeGeometry args={[3.6,52]}/><meshStandardMaterial color="#246f86"/></mesh>
+ <group position={[-6,.28,0]}><mesh castShadow><boxGeometry args={[5.6,.22,1.7]}/><meshStandardMaterial color="#805a34"/></mesh>{Array.from({length:10},(_,i)=><mesh key={i} position={[-2.5+i*.55,.15,0]}><boxGeometry args={[.5,.07,1.78]}/><meshStandardMaterial color={i%2?'#a0784b':'#8c633b'}/></mesh>)}</group>
+ {trees.map((p,i)=><Tree key={i} p={p} scale={.8+(i%4)*.13}/>)}
+ <group position={[-10,0,-10]}><mesh position={[0,.65,0]} castShadow><boxGeometry args={[3.3,1.3,3.3]}/><meshStandardMaterial color="#626d5d"/></mesh><mesh position={[0,1.45,0]}><torusGeometry args={[.9,.13,8,6]}/><meshStandardMaterial color="#3d5946"/></mesh><mesh position={[0,2.2,0]}><octahedronGeometry args={[.55]}/><meshStandardMaterial color={props.found.length===3?'#aaffce':'#52765c'} emissive="#28c77b" emissiveIntensity={props.found.length===3?2:.2}/></mesh><pointLight color="#46ff9c" intensity={props.found.length===3?2:.3} distance={8}/></group>
+ <group position={[0,0,-20]}><mesh position={[0,.6,0]} castShadow><boxGeometry args={[2.2,1.2,1.6]}/><meshStandardMaterial color="#76502f"/></mesh><mesh position={[0,1.28,0]}><boxGeometry args={[2.3,.18,1.7]}/><meshStandardMaterial color="#b78b4d"/></mesh>{props.chestOpen&&<><pointLight position={[0,1.7,0]} color="#ffe47a" intensity={3} distance={8}/><mesh position={[0,1.8,0]}><icosahedronGeometry args={[.65,1]}/><meshStandardMaterial color="#ffe58a" emissive="#ffb51b" emissiveIntensity={2}/></mesh></>}</group>
+ {relics.map(r=><Relic key={r.id} p={r.p} found={props.found.includes(r.id)}/>)}<Boar p={[-3,0,7]} phase={0}/><Boar p={[15,0,-3]} phase={2.4}/>
+ <Explorer {...props} />
+ </>}
+export default function JungleGame(){
+ const [input,setInput]=useState<Input>({forward:0,side:0,jump:false,interact:false,sprint:false}),[found,setFound]=useState<string[]>([]),[health,setHealth]=useState(3),[position,setPosition]=useState<V>([0,0,0]),[nearby,setNearby]=useState(''),[message,setMessage]=useState('Find 3 glowing relics. Avoid wild boars. Unlock the altar.'),[chestOpen,setChestOpen]=useState(false),[gameOver,setGameOver]=useState(false),[joystick,setJoystick]=useState({x:0,y:0}),[mobileSprint,setMobileSprint]=useState(false)
+ const keys=useRef<Record<string,boolean>>({})
+ useEffect(()=>{const down=(e:KeyboardEvent)=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();keys.current[e.key.toLowerCase()]=true},up=(e:KeyboardEvent)=>{keys.current[e.key.toLowerCase()]=false},timer=window.setInterval(()=>{if(!gameOver)setInput({forward:(keys.current.w||keys.current.arrowup?-1:0)+(keys.current.s||keys.current.arrowdown?1:0)-joystick.y,side:(keys.current.d||keys.current.arrowright?1:0)-(keys.current.a||keys.current.arrowleft?1:0)+joystick.x,jump:!!keys.current[' '],interact:!!keys.current.e,sprint:!!keys.current.shift||mobileSprint})},35);window.addEventListener('keydown',down);window.addEventListener('keyup',up);return()=>{clearInterval(timer);window.removeEventListener('keydown',down);window.removeEventListener('keyup',up)}},[joystick,gameOver,mobileSprint])
+ const collect=(id:string)=>{setFound(v=>v.includes(id)?v:[...v,id]);setMessage((relics.find(r=>r.id===id)?.name||'Relic')+' collected! '+(found.length+1)+'/3 secured.')}
+ const damage=()=>setHealth(h=>{const n=h-1;if(n<=0){setGameOver(true);setMessage('The jungle got you. Restart and try again.')}else setMessage('A boar hit you! '+n+' hearts left. Keep moving!');return Math.max(0,n)})
+ const restart=()=>{setFound([]);setHealth(3);setPosition([0,0,0]);setNearby('');setChestOpen(false);setGameOver(false);setInput({forward:0,side:0,jump:false,interact:false,sprint:false});keys.current={};setMessage('New expedition! Find 3 relics and unlock the treasure.')}
+ const stick=(e:PointerEvent<HTMLDivElement>)=>{const r=e.currentTarget.getBoundingClientRect(),x=(e.clientX-r.left-r.width/2)/(r.width/2),y=(e.clientY-r.top-r.height/2)/(r.height/2),l=Math.max(1,Math.hypot(x,y));setJoystick({x:x/l,y:y/l})}
+ return <section className="jungle3d-wrap"><div className="jungle3d-head"><div><span className="j3d-eyebrow">PLAYABLE 3D ADVENTURE</span><h2>ETH <span>JUNGLE</span></h2><p>Three relics. Two wild boars. One hidden treasure.</p></div><div className="j3d-coords">X {position[0].toFixed(0)} · Z {position[2].toFixed(0)}</div></div>
+ <div className="j3d-gamebar"><div><small>HEALTH</small><strong>{'♥ '.repeat(health)}{'♡ '.repeat(3-health)}</strong></div><div><small>RELICS</small><strong>{found.length}/3</strong></div><div><small>OBJECTIVE</small><strong>{chestOpen?'TREASURE FOUND':found.length===3?'OPEN ALTAR':'FIND RELICS'}</strong></div></div>
+ <div className="jungle3d-stage"><Canvas shadows camera={{position:[0,5,9],fov:55}} dpr={[1,1.5]}><color attach="background" args={['#9ab89a']}/><fog attach="fog" args={['#9ab89a',20,58]}/><World input={input} found={found} chestOpen={chestOpen} onCollect={collect} onChest={()=>{setChestOpen(true);setMessage('TREASURE FOUND! Expedition complete.')}} onDamage={damage} setPos={setPosition} setNear={setNearby}/></Canvas>
+ <div className="j3d-hud"><span>WASD / ARROWS MOVE</span><span>SPACE JUMP · SHIFT RUN · E INTERACT</span></div>
+ <div className="j3d-objective"><strong>{gameOver?'EXPEDITION FAILED':chestOpen?'TREASURE UNLOCKED':nearby||'JUNGLE EXPEDITION'}</strong><span>{gameOver?'Restart to try again':chestOpen?'You found the hidden treasure!':nearby?'Press E / USE':found.length+'/3 relics · Avoid the boars'}</span>{!gameOver&&!chestOpen&&<button onPointerDown={()=>{keys.current.e=true}} onPointerUp={()=>{keys.current.e=false}} onPointerLeave={()=>{keys.current.e=false}}>USE</button>}{(gameOver||chestOpen)&&<button onClick={restart}>PLAY AGAIN</button>}</div>
+ <div className="j3d-mobile-controls"><div className="j3d-joystick" onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);stick(e)}} onPointerMove={e=>{if(e.buttons)stick(e)}} onPointerUp={()=>setJoystick({x:0,y:0})} onPointerCancel={()=>setJoystick({x:0,y:0})}><span/></div><div className="j3d-mobile-actions"><button className="j3d-jump" onPointerDown={()=>setInput(v=>({...v,jump:true}))} onPointerUp={()=>setInput(v=>({...v,jump:false}))} onPointerLeave={()=>setInput(v=>({...v,jump:false}))}>JUMP</button><button className="j3d-action" onPointerDown={()=>{keys.current.e=true}} onPointerUp={()=>{keys.current.e=false}} onPointerLeave={()=>{keys.current.e=false}}>USE</button><button className="j3d-action" onPointerDown={()=>setMobileSprint(true)} onPointerUp={()=>setMobileSprint(false)} onPointerLeave={()=>setMobileSprint(false)}>RUN</button></div></div></div>
+ <div className="j3d-bottomline"><span>{message}</span><button onClick={restart}>RESTART</button></div><p className="j3d-note">Game prototype only. No wallet transaction, entry fee, or ETH payout is enabled.</p></section>
 }
