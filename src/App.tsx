@@ -1,18 +1,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Compass, Map, Sparkles, Trophy, Wallet, Search, LockKeyhole,
-  Trees, Footprints, CircleHelp, ChevronRight, RotateCcw, ShieldCheck,
-  Menu, X, Clock3, Flame, Gem, Leaf, Mountain, TreePine
-} from 'lucide-react'
-import { supabase } from './lib/supabase'
-
-type Tile = {
-  id: number
-  kind: 'forest' | 'path' | 'water' | 'ruins' | 'cave' | 'shrine' | 'clearing'
-
-import { useEffect, useMemo, useState } from 'react'
-import {
   Compass, Map, Sparkles, Trophy, Search, LockKeyhole,
   Trees, Footprints, CircleHelp, ChevronRight, RotateCcw, ShieldCheck,
   Menu, X, Clock3, Flame, Gem, Leaf, Mountain, TreePine
