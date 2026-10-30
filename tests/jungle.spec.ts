@@ -1,40 +1,40 @@
 import { expect, test } from '@playwright/test'
 
-async function openApp(page: import('@playwright/test').Page) {
-  const pageErrors: string[] = []
-  page.on('pageerror', error => pageErrors.push(error.message))
-  page.on('console', message => { if (message.type() === 'error') pageErrors.push(`console: ${message.text()}`) })
-  page.on('requestfailed', request => pageErrors.push(`request failed: ${request.url()} — ${request.failure()?.errorText}`))
+async function openGame(page: import('@playwright/test').Page) {
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
   const response = await page.goto('./')
-  await page.locator('#root').waitFor({ state: 'attached' })
-  await page.waitForTimeout(1500)
-  const rootHtml = await page.locator('#root').innerHTML()
-  console.log(JSON.stringify({
-    url: page.url(),
-    status: response?.status(),
-    title: await page.title(),
-    rootText: (await page.locator('#root').innerText()).slice(0, 1200),
-    rootHtml: rootHtml.slice(0, 1800),
-    pageErrors,
-  }))
-  expect(response?.ok(), 'The app document should load successfully').toBeTruthy()
-  expect(rootHtml, 'React should mount content into #root').not.toBe('')
-  expect(pageErrors, 'The page should not throw uncaught runtime errors').toEqual([])
+  await expect(page.locator('.pixel-game')).toBeVisible()
+  await expect(page.locator('canvas[aria-label="Playable top down pixel adventure world"]')).toBeVisible()
+  expect(response?.ok()).toBeTruthy()
+  expect(errors).toEqual([])
 }
 
-test('open pixel jungle renders the endless explorer world', async ({ page }) => {
-  await openApp(page)
-  await expect(page.locator('.jungle3d-wrap')).toBeVisible()
-  await expect(page.locator('.jungle3d-head h2')).toContainText('ETH JUNGLE')
-  await expect(page.locator('.jungle3d-stage canvas')).toBeVisible()
-  await expect(page.locator('.j3d-objective')).toContainText('EXPLORE THE WILD')
-  await expect(page.locator('.j3d-gamebar')).toContainText('ENDLESS')
+test('desktop loads the playable pixel island and quest board', async ({ page }) => {
+  await openGame(page)
+  await expect(page.getByRole('heading', { name: /FIND YOUR OWN PATH/i })).toBeVisible()
+  await expect(page.locator('.pg-canvas-wrap')).toBeVisible()
+  await expect(page.locator('.pg-quest-card')).toHaveCount(3)
+  await page.getByRole('button', { name: /OPEN BOARD/i }).click()
+  await expect(page.locator('.pg-modal')).toContainText('QUEST BOARD')
+  await expect(page.locator('.pg-modal')).toContainText('First Steps')
 })
 
-test('mobile layout exposes touch controls', async ({ page }, testInfo) => {
+test('keyboard controls move the explorer', async ({ page }) => {
+  await openGame(page)
+  const before = await page.locator('.pg-stats').innerText()
+  await page.keyboard.down('ArrowUp')
+  await page.waitForTimeout(600)
+  await page.keyboard.up('ArrowUp')
+  const after = await page.locator('.pg-stats').innerText()
+  expect(after).not.toBe(before)
+})
+
+test('mobile layout exposes joystick and action controls', async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile-only control check')
-  await openApp(page)
-  await expect(page.locator('.j3d-mobile-controls')).toBeVisible()
-  await expect(page.locator('.j3d-joystick')).toBeVisible()
+  await openGame(page)
+  await expect(page.locator('.pg-touch-controls')).toBeVisible()
+  await expect(page.locator('.pg-stick')).toBeVisible()
   await expect(page.getByRole('button', { name: 'JUMP' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'RUN' })).toBeVisible()
 })
