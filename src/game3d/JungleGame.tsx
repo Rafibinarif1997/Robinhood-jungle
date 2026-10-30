@@ -5,7 +5,8 @@ import type { PointerEvent } from 'react'
 import * as THREE from 'three'
 import './jungle-game.css'
 
-type Input = { forward: number; side: number; jump: boolean }
+type Input = { forward: number; side: number; jump: boolean; interact: boolean }
+const pointsOfInterest = [{ id: 'ruins', name: 'Ancient Ruins', position: [-10, 0, -10] as [number, number, number] }, { id: 'cave', name: 'Hidden Cave', position: [13, 0, 8] as [number, number, number] }]
 
 function Tree({ position, scale = 1 }: { position: [number, number, number]; scale?: number }) {
   return (
@@ -24,7 +25,7 @@ function Tree({ position, scale = 1 }: { position: [number, number, number]; sca
   )
 }
 
-function Explorer({ input, setPosition, obstacles }: { input: Input; setPosition: (p: [number, number, number]) => void; obstacles: [number, number, number][] }) {
+function Explorer({ input, setPosition, setNearby, onFound, found, obstacles }: { input: Input; setPosition: (p: [number, number, number]) => void; setNearby: (name: string) => void; onFound: (id: string) => void; found: string[]; obstacles: [number, number, number][] }) {
   const root = useRef<THREE.Group>(null)
   const velocity = useRef(0)
   const cameraTarget = useMemo(() => new THREE.Vector3(), [])
@@ -32,6 +33,7 @@ function Explorer({ input, setPosition, obstacles }: { input: Input; setPosition
   const cameraOffset = useMemo(() => new THREE.Vector3(0, 4.1, 7.5), [])
   const uiClock = useRef(0)
   const wasJumping = useRef(false)
+  const wasInteracting = useRef(false)
 
   useFrame((state, delta) => {
     if (!root.current) return
@@ -60,6 +62,10 @@ function Explorer({ input, setPosition, obstacles }: { input: Input; setPosition
     const desired = cameraTarget.clone().add(cameraOffset)
     state.camera.position.lerp(desired, 1 - Math.exp(-5 * move))
     state.camera.lookAt(cameraTarget.x, cameraTarget.y + 1.25, cameraTarget.z)
+    const nearby = pointsOfInterest.find(point => !found.includes(point.id) && Math.hypot(root.current!.position.x - point.position[0], root.current!.position.z - point.position[2]) < 2.8)
+    setNearby(nearby?.name ?? '')
+    if (input.interact && !wasInteracting.current && nearby) onFound(nearby.id)
+    wasInteracting.current = input.interact
     uiClock.current += move
     if (uiClock.current > 0.15) {
       uiClock.current = 0
@@ -87,7 +93,7 @@ function Explorer({ input, setPosition, obstacles }: { input: Input; setPosition
   )
 }
 
-function World({ input, setPosition }: { input: Input; setPosition: (p: [number, number, number]) => void }) {
+function World({ input, setPosition, setNearby, onFound, found }: { input: Input; setPosition: (p: [number, number, number]) => void; setNearby: (name: string) => void; onFound: (id: string) => void; found: string[] }) {
   const trees = useMemo(() => Array.from({ length: 95 }, (_, i) => {
     const angle = i * 2.399
     const radius = 7 + (i % 9) * 1.8
@@ -107,17 +113,32 @@ function World({ input, setPosition }: { input: Input; setPosition: (p: [number,
         <meshStandardMaterial color="#9b8051" roughness={1} />
       </mesh>
       {trees.map((p, i) => <Tree key={i} position={p} scale={0.8 + (i % 4) * 0.16} />)}
+      <group position={[-10, 0, -10]}>
+        <mesh position={[0, 0.55, 0]} castShadow><boxGeometry args={[2.2, 1.1, 1.8]} /><meshStandardMaterial color="#777d68" roughness={1} /></mesh>
+        <mesh position={[0, 1.2, 0]}><octahedronGeometry args={[0.48, 0]} /><meshStandardMaterial color={found.includes('ruins') ? '#a9ffc4' : '#4be58a'} emissive="#1a9b50" emissiveIntensity={1.2} /></mesh>
+        <mesh position={[0, 0.08, 0]}><cylinderGeometry args={[1.5, 1.7, 0.16, 8]} /><meshStandardMaterial color="#424d3e" /></mesh>
+      </group>
+      <group position={[13, 0, 8]}>
+        <mesh position={[-1, 1.2, 0]}><cylinderGeometry args={[0.35, 0.5, 2.4, 8]} /><meshStandardMaterial color="#5c6758" /></mesh>
+        <mesh position={[1, 1.2, 0]}><cylinderGeometry args={[0.35, 0.5, 2.4, 8]} /><meshStandardMaterial color="#5c6758" /></mesh>
+        <mesh position={[0, 2.35, 0]}><boxGeometry args={[2.4, 0.45, 0.65]} /><meshStandardMaterial color="#65705c" /></mesh>
+        <mesh position={[0, 0.1, -0.05]}><circleGeometry args={[1.1, 24]} /><meshBasicMaterial color="#09150e" /></mesh>
+        <pointLight position={[0, 1, 1]} color="#64e89b" intensity={found.includes('cave') ? 1.4 : 0.5} distance={5} />
+      </group>
       <group position={[8, 0, -8]}>
         <mesh position={[0, 0.3, 0]} castShadow><dodecahedronGeometry args={[1.1, 0]} /><meshStandardMaterial color="#68766a" roughness={1} /></mesh>
         <mesh position={[2, 0.22, -1.3]} castShadow><dodecahedronGeometry args={[0.8, 0]} /><meshStandardMaterial color="#526653" roughness={1} /></mesh>
       </group>
-      <Explorer input={input} setPosition={setPosition} obstacles={[...trees, [8, 0, -8], [10, 0, -9.3]]} />
+      <Explorer input={input} setPosition={setPosition} setNearby={setNearby} onFound={onFound} found={found} obstacles={[...trees, [8, 0, -8], [10, 0, -9.3], [-10, 0, -10], [13, 0, 8]]} />
     </>
   )
 }
 
 export default function JungleGame() {
-  const [input, setInput] = useState<Input>({ forward: 0, side: 0, jump: false })
+  const [input, setInput] = useState<Input>({ forward: 0, side: 0, jump: false, interact: false })
+  const [nearby, setNearby] = useState('')
+  const [found, setFound] = useState<string[]>([])
+  const [message, setMessage] = useState('Explore the jungle and look for glowing landmarks.')
   const [position, setPosition] = useState<[number, number, number]>([0, 0, 0])
   const [joystick, setJoystick] = useState({ x: 0, y: 0 })
   const keys = useRef<Record<string, boolean>>({})
@@ -134,6 +155,7 @@ export default function JungleGame() {
       forward: (keys.current.w || keys.current.arrowup ? -1 : 0) + (keys.current.s || keys.current.arrowdown ? 1 : 0) - joystick.y,
       side: (keys.current.d || keys.current.arrowright ? 1 : 0) - (keys.current.a || keys.current.arrowleft ? 1 : 0) + joystick.x,
       jump: !!keys.current[' '],
+      interact: !!keys.current.e,
     }))
     window.addEventListener('keydown', down)
     window.addEventListener('keyup', up)
@@ -159,15 +181,16 @@ export default function JungleGame() {
         <Canvas shadows camera={{ position: [0, 4, 8], fov: 55 }} dpr={[1, 1.5]}>
           <color attach="background" args={['#9ab89a']} />
           <fog attach="fog" args={['#9ab89a', 18, 58]} />
-          <World input={input} setPosition={setPosition} />
+          <World input={input} setPosition={setPosition} setNearby={setNearby} onFound={id => { setFound(prev => prev.includes(id) ? prev : [...prev, id]); setMessage(id === 'ruins' ? 'Ancient Ruins discovered! A glowing relic has been recorded.' : 'Hidden Cave discovered! You found an old jungle passage.') }} found={found} />
         </Canvas>
-        <div className="j3d-hud"><span>WASD / ARROWS TO MOVE</span><span>SPACE TO JUMP</span></div>
+        <div className="j3d-hud"><span>WASD / ARROWS TO MOVE</span><span>SPACE TO JUMP · E TO SEARCH</span></div>
+        <div className="j3d-objective"><strong>{nearby ? nearby.toUpperCase() : "JUNGLE EXPEDITION"}</strong><span>{nearby ? "Press E or SEARCH to investigate" : found.length + "/2 discoveries found"}</span>{nearby && <button onPointerDown={() => setInput(v => ({ ...v, interact: true }))} onPointerUp={() => setInput(v => ({ ...v, interact: false }))} onPointerLeave={() => setInput(v => ({ ...v, interact: false }))}>SEARCH</button>}</div>
         <div className="j3d-mobile-controls">
           <div ref={joystickRef} className="j3d-joystick" onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); moveStick(e) }} onPointerMove={e => { if (e.buttons) moveStick(e) }} onPointerUp={() => setJoystick({ x: 0, y: 0 })} onPointerCancel={() => setJoystick({ x: 0, y: 0 })}><span /></div>
           <button className="j3d-jump" onPointerDown={() => setInput(v => ({ ...v, jump: true }))} onPointerUp={() => setInput(v => ({ ...v, jump: false }))} onPointerLeave={() => setInput(v => ({ ...v, jump: false }))}>JUMP</button>
         </div>
       </div>
-      <p className="j3d-note">Prototype build · No wallet transaction or prize claim is enabled.</p>
+      <p className="j3d-note">{message} · {found.length}/2 discovered · No wallet transaction or prize claim is enabled.</p>
     </section>
   )
 }
