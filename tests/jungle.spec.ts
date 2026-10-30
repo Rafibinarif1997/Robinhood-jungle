@@ -3,8 +3,11 @@ import { expect, test } from '@playwright/test'
 async function openApp(page: import('@playwright/test').Page) {
   const pageErrors: string[] = []
   page.on('pageerror', error => pageErrors.push(error.message))
+  page.on('console', message => { if (message.type() === 'error') pageErrors.push(`console: ${message.text()}`) })
+  page.on('requestfailed', request => pageErrors.push(`request failed: ${request.url()} — ${request.failure()?.errorText}`))
   const response = await page.goto('./')
-  await page.locator('#root').waitFor()
+  await page.locator('#root').waitFor({ state: 'attached' })
+  await page.waitForTimeout(1500)
   const rootHtml = await page.locator('#root').innerHTML()
   console.log(JSON.stringify({
     url: page.url(),
