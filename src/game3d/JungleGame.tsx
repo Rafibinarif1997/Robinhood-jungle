@@ -5,59 +5,140 @@ import type { PointerEvent } from 'react'
 import * as THREE from 'three'
 import './jungle-game.css'
 
-type V=[number,number,number]
-type Input={forward:number;side:number;jump:boolean;interact:boolean;sprint:boolean}
-const relics=[{id:'sun',name:'Sun Relic',p:[-15,0,-4] as V},{id:'moon',name:'Moon Relic',p:[12,0,-13] as V},{id:'root',name:'Root Relic',p:[14,0,14] as V}]
-const altar:V=[-10,0,-10], chest:V=[0,0,-20]
+type V = [number, number, number]
+type Input = { forward: number; side: number; jump: boolean; sprint: boolean }
+const CHUNK = 36
+const GRID = 3
 
-function Tree({p,scale=1}:{p:V;scale?:number}){return <group position={p} scale={scale}><mesh position={[0,1.3,0]} castShadow><cylinderGeometry args={[.16,.25,2.6,7]}/><meshStandardMaterial color="#624329"/></mesh>{[0,1,2].map((n)=><mesh key={n} position={[0,2+n*.55,0]} castShadow><coneGeometry args={[1.15-n*.2,1.7,7]}/><meshStandardMaterial color={['#174a2a','#216338','#347d43'][n]}/></mesh>)}</group>}
-function Relic({p,found}:{p:V;found:boolean}){const ref=useRef<THREE.Group>(null);useFrame(({clock})=>{if(ref.current){ref.current.rotation.y=clock.elapsedTime;ref.current.position.y=1+Math.sin(clock.elapsedTime*2)*.18}});if(found)return null;return <group ref={ref} position={p}><mesh><octahedronGeometry args={[.48]}/><meshStandardMaterial color="#a8ffe0" emissive="#21d985" emissiveIntensity={2}/></mesh><mesh><torusGeometry args={[.8,.04,8,24]}/><meshStandardMaterial color="#7fffc0" emissive="#25e88b"/></mesh><pointLight color="#42ffad" intensity={1.5} distance={5}/></group>}
-function Boar({p,phase}:{p:V;phase:number}){const ref=useRef<THREE.Group>(null);useFrame(({clock})=>{if(!ref.current)return;const t=clock.elapsedTime*.48+phase;ref.current.position.x=p[0]+Math.sin(t)*3;ref.current.position.z=p[2]+Math.cos(t*.8)*2;ref.current.rotation.y=Math.atan2(Math.cos(t),-Math.sin(t))});return <group ref={ref} position={p}><mesh position={[0,.62,0]} castShadow><capsuleGeometry args={[.48,.8,4,8]}/><meshStandardMaterial color="#70452e"/></mesh><mesh position={[0,.9,-.6]}><sphereGeometry args={[.37,12,10]}/><meshStandardMaterial color="#86543a"/></mesh>{[-.23,.23].map(x=><mesh key={x} position={[x,.22,.1]}><cylinderGeometry args={[.09,.1,.4,6]}/><meshStandardMaterial color="#38281e"/></mesh>)}</group>}
-function Explorer({input,found,chestOpen,onCollect,onChest,onDamage,setPos,setNear}:{input:Input;found:string[];chestOpen:boolean;onCollect:(s:string)=>void;onChest:()=>void;onDamage:()=>void;setPos:(p:V)=>void;setNear:(s:string)=>void}){
- const root=useRef<THREE.Group>(null),vel=useRef(0),jump=useRef(false),interact=useRef(false),hurt=useRef(0),clock=useRef(0)
- const dir=useMemo(()=>new THREE.Vector3(),[]),target=useMemo(()=>new THREE.Vector3(),[]),offset=useMemo(()=>new THREE.Vector3(0,5.3,8.8),[])
- useFrame((state,delta)=>{if(!root.current)return;const dt=Math.min(delta,.04),p=root.current.position;dir.set(input.side,0,input.forward).normalize()
- if(Math.abs(input.forward)+Math.abs(input.side)>.05){const speed=input.sprint?7:4.7,nx=p.x+dir.x*speed*dt,nz=p.z+dir.z*speed*dt
- const blocks:V[]=[[-21,0,-17],[-18,0,9],[-7,0,17],[4,0,19],[20,0,4],[20,0,-18],[-10,0,-10],[-11.7,0,-10],[-8.3,0,-10],[-10,0,-11.7],[-10,0,-8.3],[7,0,-3],[9,0,-3],...Array.from({length:24},(_,i)=>{const a=i*2.399,r=18+(i%4)*1.1;return [Math.cos(a)*r,0,Math.sin(a)*r] as V})]
- if(!blocks.some(([x,,z])=>Math.hypot(nx-x,nz-z)<1.05)){p.x=nx;p.z=nz}root.current.rotation.y=Math.atan2(dir.x,dir.z)}
- p.x=THREE.MathUtils.clamp(p.x,-24,24);p.z=THREE.MathUtils.clamp(p.z,-24,24)
- if(input.jump&&!jump.current&&p.y<.03)vel.current=7;jump.current=input.jump;vel.current-=18*dt;p.y=Math.max(0,p.y+vel.current*dt);if(!p.y)vel.current=0
- const t=state.clock.elapsedTime*.48,beasts=[[-3+Math.sin(t)*3,0,7+Math.cos(t*.8)*2],[15+Math.sin(t+2.4)*3,0,-3+Math.cos((t+2.4)*.8)*2]]
- hurt.current-=dt;if(p.y<.65&&hurt.current<=0&&beasts.some(([x,,z])=>Math.hypot(p.x-x,p.z-z)<1.35)){onDamage();hurt.current=1.5}
- const r=relics.find(x=>!found.includes(x.id)&&Math.hypot(p.x-x.p[0],p.z-x.p[2])<2.1),a=Math.hypot(p.x-altar[0],p.z-altar[2])<2.5,c=Math.hypot(p.x-chest[0],p.z-chest[2])<2.6
- const prompt=r?'Collect '+r.name:a?(found.length===3?'Activate ancient altar':`Altar locked · ${found.length}/3 relics`):c?(chestOpen?'Treasure claimed!':'Sealed treasure chest'):''
- setNear(prompt);if(input.interact&&!interact.current){if(r)onCollect(r.id);else if(a&&found.length===3)onChest()}interact.current=input.interact
- target.copy(p);state.camera.position.lerp(target.clone().add(offset),1-Math.exp(-4.5*dt));state.camera.lookAt(p.x,p.y+1.2,p.z)
- clock.current+=dt;if(clock.current>.12){clock.current=0;setPos([p.x,p.y,p.z])}
- })
- return <group ref={root}><mesh position={[0,1,0]} castShadow><capsuleGeometry args={[.34,.78,5,9]}/><meshStandardMaterial color="#d18b52"/></mesh><mesh position={[0,1.78,0]} castShadow><sphereGeometry args={[.29,16,12]}/><meshStandardMaterial color="#d9a16b"/></mesh><mesh position={[0,1.08,-.32]}><boxGeometry args={[.52,.55,.22]}/><meshStandardMaterial color="#bd4f27"/></mesh><mesh position={[0,1.45,.03]}><boxGeometry args={[.68,.13,.52]}/><meshStandardMaterial color="#35291f"/></mesh>{[-.16,.16].map(x=><mesh key={x} position={[x,.32,0]}><boxGeometry args={[.17,.5,.2]}/><meshStandardMaterial color="#283a2d"/></mesh>)}</group>
+function random(seed: number) {
+  let n = seed | 0
+  return () => {
+    n = (n + 0x6D2B79F5) | 0
+    let t = Math.imul(n ^ (n >>> 15), 1 | n)
+    t ^= t + Math.imul(t ^ (t >>> 7), 61 | t)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
 }
-function World(props:{input:Input;found:string[];chestOpen:boolean;onCollect:(s:string)=>void;onChest:()=>void;onDamage:()=>void;setPos:(p:V)=>void;setNear:(s:string)=>void}){
- const trees=useMemo(()=>Array.from({length:42},(_,i)=>{const a=i*2.399,r=18+(i%4)*1.1;return [Math.cos(a)*r,0,Math.sin(a)*r] as V}),[])
- return <><Sky sunPosition={[70,28,25]} turbidity={8}/><ambientLight intensity={.7} color="#b9d9b1"/><directionalLight position={[10,20,7]} intensity={1.7} castShadow/>
- <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.08,0]} receiveShadow><planeGeometry args={[100,100]}/><meshStandardMaterial color="#244b2b"/></mesh>
- <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.035,0]}><circleGeometry args={[4.8,48]}/><meshStandardMaterial color="#a58a58"/></mesh>
- <mesh rotation={[-Math.PI/2,0,0]} position={[-6,-.025,0]}><planeGeometry args={[3.6,52]}/><meshStandardMaterial color="#246f86"/></mesh>
- <group position={[-6,.28,0]}><mesh castShadow><boxGeometry args={[5.6,.22,1.7]}/><meshStandardMaterial color="#805a34"/></mesh>{Array.from({length:10},(_,i)=><mesh key={i} position={[-2.5+i*.55,.15,0]}><boxGeometry args={[.5,.07,1.78]}/><meshStandardMaterial color={i%2?'#a0784b':'#8c633b'}/></mesh>)}</group>
- {trees.map((p,i)=><Tree key={i} p={p} scale={.8+(i%4)*.13}/>)}
- <group position={[-10,0,-10]}><mesh position={[0,.65,0]} castShadow><boxGeometry args={[3.3,1.3,3.3]}/><meshStandardMaterial color="#626d5d"/></mesh><mesh position={[0,1.45,0]}><torusGeometry args={[.9,.13,8,6]}/><meshStandardMaterial color="#3d5946"/></mesh><mesh position={[0,2.2,0]}><octahedronGeometry args={[.55]}/><meshStandardMaterial color={props.found.length===3?'#aaffce':'#52765c'} emissive="#28c77b" emissiveIntensity={props.found.length===3?2:.2}/></mesh><pointLight color="#46ff9c" intensity={props.found.length===3?2:.3} distance={8}/></group>
- <group position={[0,0,-20]}><mesh position={[0,.6,0]} castShadow><boxGeometry args={[2.2,1.2,1.6]}/><meshStandardMaterial color="#76502f"/></mesh><mesh position={[0,1.28,0]}><boxGeometry args={[2.3,.18,1.7]}/><meshStandardMaterial color="#b78b4d"/></mesh>{props.chestOpen&&<><pointLight position={[0,1.7,0]} color="#ffe47a" intensity={3} distance={8}/><mesh position={[0,1.8,0]}><icosahedronGeometry args={[.65,1]}/><meshStandardMaterial color="#ffe58a" emissive="#ffb51b" emissiveIntensity={2}/></mesh></>}</group>
- {relics.map(r=><Relic key={r.id} p={r.p} found={props.found.includes(r.id)}/>)}<Boar p={[-3,0,7]} phase={0}/><Boar p={[15,0,-3]} phase={2.4}/>
- <Explorer {...props} />
- </>}
+function seedFor(x: number, z: number) { return Math.imul(x + 92821, 73856093) ^ Math.imul(z + 68917, 19349663) }
+
+function PixelTree({ x, z, scale, tint }: { x: number; z: number; scale: number; tint: string }) {
+  return <group position={[x, 0, z]} scale={scale}>
+    <mesh position={[0, .85, 0]} castShadow><boxGeometry args={[.42, 1.7, .42]}/><meshStandardMaterial color="#65452d"/></mesh>
+    <mesh position={[0, 2.05, 0]} castShadow><boxGeometry args={[1.85, 1.55, 1.85]}/><meshStandardMaterial color={tint}/></mesh>
+    <mesh position={[0, 2.95, 0]} castShadow><boxGeometry args={[1.25, 1.1, 1.25]}/><meshStandardMaterial color={tint}/></mesh>
+    <mesh position={[0, 3.55, 0]} castShadow><boxGeometry args={[.65, .7, .65]}/><meshStandardMaterial color={tint}/></mesh>
+  </group>
+}
+function Chunk({ cx, cz }: { cx: number; cz: number }) {
+  const data = useMemo(() => {
+    const rand = random(seedFor(cx, cz))
+    const trees: {x:number;z:number;s:number;c:string}[] = []
+    const rocks: {x:number;z:number;s:number}[] = []
+    for (let i=0;i<22;i++) {
+      const x = -CHUNK/2 + 2 + rand()*(CHUNK-4)
+      const z = -CHUNK/2 + 2 + rand()*(CHUNK-4)
+      const wx = cx*CHUNK+x, wz=cz*CHUNK+z
+      if (Math.hypot(wx,wz)<9) continue
+      trees.push({x,z,s:.72+rand()*.72,c:['#205b37','#2c7544','#397f49','#174c32'][Math.floor(rand()*4)]})
+    }
+    for(let i=0;i<7;i++) rocks.push({x:-16+rand()*32,z:-16+rand()*32,s:.35+rand()*.8})
+    return {trees,rocks,pond:rand()>.72?{x:-10+rand()*20,z:-10+rand()*20,r:2.5+rand()*3}:null,grass:rand()>.5?'#315f35':'#28552f'}
+  },[cx,cz])
+  return <group position={[cx*CHUNK,0,cz*CHUNK]}>
+    <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.12,0]} receiveShadow><planeGeometry args={[CHUNK,CHUNK]}/><meshStandardMaterial color={data.grass}/></mesh>
+    {data.trees.map((t,i)=><PixelTree key={i} x={t.x} z={t.z} scale={t.s} tint={t.c}/>)}
+    {data.rocks.map((r,i)=><mesh key={i} position={[r.x,r.s*.35,r.z]} rotation={[0,i*.7,0]} castShadow><boxGeometry args={[r.s*1.6,r.s*.8,r.s*1.3]}/><meshStandardMaterial color="#68776a"/></mesh>)}
+    {data.pond&&<group position={[data.pond.x,-.02,data.pond.z]}><mesh rotation={[-Math.PI/2,0,0]}><circleGeometry args={[data.pond.r,12]}/><meshStandardMaterial color="#367f91" roughness={.28}/></mesh><mesh rotation={[-Math.PI/2,0,0]} position={[0,.015,0]}><ringGeometry args={[data.pond.r,data.pond.r+.35,12]}/><meshStandardMaterial color="#6d9a61"/></mesh></group>}
+    {Array.from({length:9},(_,i)=><mesh key={'fern'+i} position={[-15+(i*7)%30,.16,-14+(i*11)%28]} rotation={[0,i*1.7,0]}><coneGeometry args={[.45,.7,4]}/><meshStandardMaterial color="#67a65a"/></mesh>)}
+  </group>
+}
+
+function PixelExplorer({ input, onPosition }: { input: Input; onPosition:(p:V)=>void }) {
+  const root=useRef<THREE.Group>(null), body=useRef<THREE.Group>(null), leftLeg=useRef<THREE.Group>(null), rightLeg=useRef<THREE.Group>(null), leftArm=useRef<THREE.Group>(null), rightArm=useRef<THREE.Group>(null)
+  const velocity=useRef(0), grounded=useRef(true), jumpWas=useRef(false), elapsed=useRef(0)
+  const dir=useMemo(()=>new THREE.Vector3(),[])
+  const target=useMemo(()=>new THREE.Vector3(),[])
+  useFrame((state,delta)=>{
+    if(!root.current)return
+    const dt=Math.min(delta,.04),p=root.current.position
+    dir.set(input.side,0,input.forward)
+    const moving=dir.lengthSq()>.01
+    if(moving){
+      dir.normalize()
+      const speed=input.sprint?8.2:4.8
+      p.x+=dir.x*speed*dt;p.z+=dir.z*speed*dt
+      root.current.rotation.y=Math.atan2(dir.x,dir.z)
+    }
+    if(input.jump&&!jumpWas.current&&grounded.current){velocity.current=8;grounded.current=false}
+    jumpWas.current=input.jump
+    velocity.current-=19*dt;p.y+=velocity.current*dt
+    if(p.y<=0){p.y=0;velocity.current=0;grounded.current=true}
+    elapsed.current+=dt*(moving?(input.sprint?15:10):2)
+    const swing=moving?Math.sin(elapsed.current)*.55:0
+    if(leftLeg.current)leftLeg.current.rotation.x=swing
+    if(rightLeg.current)rightLeg.current.rotation.x=-swing
+    if(leftArm.current)leftArm.current.rotation.x=-swing*.7
+    if(rightArm.current)rightArm.current.rotation.x=swing*.7
+    if(body.current)body.current.position.y=moving?Math.abs(Math.sin(elapsed.current*2))*.045:0
+    target.set(p.x,p.y+1.1,p.z)
+    state.camera.position.lerp(new THREE.Vector3(p.x+dir.x*1.2,p.y+6.2,p.z+10),1-Math.exp(-3.5*dt))
+    state.camera.lookAt(target)
+    onPosition([p.x,p.y,p.z])
+  })
+  return <group ref={root}>
+    <group ref={body}>
+      <mesh position={[0,1.18,0]} castShadow><boxGeometry args={[.68,.78,.42]}/><meshStandardMaterial color="#e6a34f"/></mesh>
+      <mesh position={[0,1.22,.225]}><boxGeometry args={[.42,.48,.035]}/><meshStandardMaterial color="#2878a8"/></mesh>
+      <mesh position={[0,1.88,0]} castShadow><boxGeometry args={[.62,.58,.58]}/><meshStandardMaterial color="#e8b879"/></mesh>
+      <mesh position={[0,2.19,0]} castShadow><boxGeometry args={[.68,.19,.66]}/><meshStandardMaterial color="#3b2920"/></mesh>
+      <mesh position={[0,2.08,.3]}><boxGeometry args={[.46,.1,.035]}/><meshStandardMaterial color="#30251e"/></mesh>
+      {[-.13,.13].map(x=><mesh key={x} position={[x,1.91,.3]}><boxGeometry args={[.07,.07,.04]}/><meshStandardMaterial color="#17251c"/></mesh>)}
+      <group ref={leftArm} position={[-.42,1.42,0]}><mesh position={[0,-.23,0]} castShadow><boxGeometry args={[.22,.52,.24]}/><meshStandardMaterial color="#e6a34f"/></mesh></group>
+      <group ref={rightArm} position={[.42,1.42,0]}><mesh position={[0,-.23,0]} castShadow><boxGeometry args={[.22,.52,.24]}/><meshStandardMaterial color="#e6a34f"/></mesh></group>
+      <group ref={leftLeg} position={[-.19,.78,0]}><mesh position={[0,-.25,0]} castShadow><boxGeometry args={[.24,.55,.28]}/><meshStandardMaterial color="#354c37"/></mesh><mesh position={[0,-.52,.08]}><boxGeometry args={[.3,.16,.42]}/><meshStandardMaterial color="#382b22"/></mesh></group>
+      <group ref={rightLeg} position={[.19,.78,0]}><mesh position={[0,-.25,0]} castShadow><boxGeometry args={[.24,.55,.28]}/><meshStandardMaterial color="#354c37"/></mesh><mesh position={[0,-.52,.08]}><boxGeometry args={[.3,.16,.42]}/><meshStandardMaterial color="#382b22"/></mesh></group>
+    </group>
+  </group>
+}
+
+function World({ input, onPosition, position }: { input:Input; onPosition:(p:V)=>void; position:V }) {
+  const cx=Math.floor(position[0]/CHUNK),cz=Math.floor(position[2]/CHUNK)
+  const chunks=useMemo(()=>{const list=[];for(let x=-GRID;x<=GRID;x++)for(let z=-GRID;z<=GRID;z++)list.push([cx+x,cz+z] as const);return list},[cx,cz])
+  return <>
+    <Sky sunPosition={[80,35,25]} turbidity={7}/>
+    <ambientLight intensity={.75} color="#c7e2b5"/>
+    <directionalLight position={[35,45,20]} intensity={1.55} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048}/>
+    <fog attach="fog" args={['#a6c59a',34,112]}/>
+    {chunks.map(([x,z])=><Chunk key={x+':'+z} cx={x} cz={z}/>)}
+    <PixelExplorer input={input} onPosition={onPosition}/>
+  </>
+}
+
 export default function JungleGame(){
- const [input,setInput]=useState<Input>({forward:0,side:0,jump:false,interact:false,sprint:false}),[found,setFound]=useState<string[]>([]),[health,setHealth]=useState(3),[position,setPosition]=useState<V>([0,0,0]),[nearby,setNearby]=useState(''),[message,setMessage]=useState('Find 3 glowing relics. Avoid wild boars. Unlock the altar.'),[chestOpen,setChestOpen]=useState(false),[gameOver,setGameOver]=useState(false),[joystick,setJoystick]=useState({x:0,y:0}),[mobileSprint,setMobileSprint]=useState(false)
- const keys=useRef<Record<string,boolean>>({})
- useEffect(()=>{const down=(e:KeyboardEvent)=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();keys.current[e.key.toLowerCase()]=true},up=(e:KeyboardEvent)=>{keys.current[e.key.toLowerCase()]=false},timer=window.setInterval(()=>{if(!gameOver)setInput({forward:(keys.current.w||keys.current.arrowup?-1:0)+(keys.current.s||keys.current.arrowdown?1:0)-joystick.y,side:(keys.current.d||keys.current.arrowright?1:0)-(keys.current.a||keys.current.arrowleft?1:0)+joystick.x,jump:!!keys.current[' '],interact:!!keys.current.e,sprint:!!keys.current.shift||mobileSprint})},35);window.addEventListener('keydown',down);window.addEventListener('keyup',up);return()=>{clearInterval(timer);window.removeEventListener('keydown',down);window.removeEventListener('keyup',up)}},[joystick,gameOver,mobileSprint])
- const collect=(id:string)=>{setFound(v=>v.includes(id)?v:[...v,id]);setMessage((relics.find(r=>r.id===id)?.name||'Relic')+' collected! '+(found.length+1)+'/3 secured.')}
- const damage=()=>setHealth(h=>{const n=h-1;if(n<=0){setGameOver(true);setMessage('The jungle got you. Restart and try again.')}else setMessage('A boar hit you! '+n+' hearts left. Keep moving!');return Math.max(0,n)})
- const restart=()=>{setFound([]);setHealth(3);setPosition([0,0,0]);setNearby('');setChestOpen(false);setGameOver(false);setInput({forward:0,side:0,jump:false,interact:false,sprint:false});keys.current={};setMessage('New expedition! Find 3 relics and unlock the treasure.')}
- const stick=(e:PointerEvent<HTMLDivElement>)=>{const r=e.currentTarget.getBoundingClientRect(),x=(e.clientX-r.left-r.width/2)/(r.width/2),y=(e.clientY-r.top-r.height/2)/(r.height/2),l=Math.max(1,Math.hypot(x,y));setJoystick({x:x/l,y:y/l})}
- return <section className="jungle3d-wrap"><div className="jungle3d-head"><div><span className="j3d-eyebrow">PLAYABLE 3D ADVENTURE</span><h2>ETH <span>JUNGLE</span></h2><p>Three relics. Two wild boars. One hidden treasure.</p></div><div className="j3d-coords">X {position[0].toFixed(0)} · Z {position[2].toFixed(0)}</div></div>
- <div className="j3d-gamebar"><div><small>HEALTH</small><strong>{'♥ '.repeat(health)}{'♡ '.repeat(3-health)}</strong></div><div><small>RELICS</small><strong>{found.length}/3</strong></div><div><small>OBJECTIVE</small><strong>{chestOpen?'TREASURE FOUND':found.length===3?'OPEN ALTAR':'FIND RELICS'}</strong></div></div>
- <div className="jungle3d-stage"><Canvas shadows camera={{position:[0,5,9],fov:55}} dpr={[1,1.5]}><color attach="background" args={['#9ab89a']}/><fog attach="fog" args={['#9ab89a',20,58]}/><World input={input} found={found} chestOpen={chestOpen} onCollect={collect} onChest={()=>{setChestOpen(true);setMessage('TREASURE FOUND! Expedition complete.')}} onDamage={damage} setPos={setPosition} setNear={setNearby}/></Canvas>
- <div className="j3d-hud"><span>WASD / ARROWS MOVE</span><span>SPACE JUMP · SHIFT RUN · E INTERACT</span></div>
- <div className="j3d-objective"><strong>{gameOver?'EXPEDITION FAILED':chestOpen?'TREASURE UNLOCKED':nearby||'JUNGLE EXPEDITION'}</strong><span>{gameOver?'Restart to try again':chestOpen?'You found the hidden treasure!':nearby?'Press E / USE':found.length+'/3 relics · Avoid the boars'}</span>{!gameOver&&!chestOpen&&<button onPointerDown={()=>{keys.current.e=true}} onPointerUp={()=>{keys.current.e=false}} onPointerLeave={()=>{keys.current.e=false}}>USE</button>}{(gameOver||chestOpen)&&<button onClick={restart}>PLAY AGAIN</button>}</div>
- <div className="j3d-mobile-controls"><div className="j3d-joystick" onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);stick(e)}} onPointerMove={e=>{if(e.buttons)stick(e)}} onPointerUp={()=>setJoystick({x:0,y:0})} onPointerCancel={()=>setJoystick({x:0,y:0})}><span/></div><div className="j3d-mobile-actions"><button className="j3d-jump" onPointerDown={()=>setInput(v=>({...v,jump:true}))} onPointerUp={()=>setInput(v=>({...v,jump:false}))} onPointerLeave={()=>setInput(v=>({...v,jump:false}))}>JUMP</button><button className="j3d-action" onPointerDown={()=>{keys.current.e=true}} onPointerUp={()=>{keys.current.e=false}} onPointerLeave={()=>{keys.current.e=false}}>USE</button><button className="j3d-action" onPointerDown={()=>setMobileSprint(true)} onPointerUp={()=>setMobileSprint(false)} onPointerLeave={()=>setMobileSprint(false)}>RUN</button></div></div></div>
- <div className="j3d-bottomline"><span>{message}</span><button onClick={restart}>RESTART</button></div><p className="j3d-note">Game prototype only. No wallet transaction, entry fee, or ETH payout is enabled.</p></section>
+  const [input,setInput]=useState<Input>({forward:0,side:0,jump:false,sprint:false})
+  const [position,setPosition]=useState<V>([0,0,0])
+  const [joystick,setJoystick]=useState({x:0,y:0})
+  const [mobileSprint,setMobileSprint]=useState(false)
+  const keys=useRef<Record<string,boolean>>({})
+  const distance=Math.floor(Math.hypot(position[0],position[2]))
+  const region=useMemo(()=>{const names=['Emerald Canopy','Mosswood','Fern Valley','Ancient Wilds','Misty Grove','Deepwood'];return names[(Math.floor(position[0]/CHUNK)+Math.floor(position[2]/CHUNK)*3+600)%names.length]},[position])
+  useEffect(()=>{
+    const down=(e:KeyboardEvent)=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();keys.current[e.key.toLowerCase()]=true}
+    const up=(e:KeyboardEvent)=>{keys.current[e.key.toLowerCase()]=false}
+    const timer=window.setInterval(()=>setInput({forward:(keys.current.w||keys.current.arrowup?-1:0)+(keys.current.s||keys.current.arrowdown?1:0)-joystick.y,side:(keys.current.d||keys.current.arrowright?1:0)-(keys.current.a||keys.current.arrowleft?1:0)+joystick.x,jump:!!keys.current[' '],sprint:!!keys.current.shift||mobileSprint}),35)
+    window.addEventListener('keydown',down);window.addEventListener('keyup',up)
+    return()=>{clearInterval(timer);window.removeEventListener('keydown',down);window.removeEventListener('keyup',up)}
+  },[joystick,mobileSprint])
+  const stick=(e:PointerEvent<HTMLDivElement>)=>{const r=e.currentTarget.getBoundingClientRect(),x=(e.clientX-r.left-r.width/2)/(r.width/2),y=(e.clientY-r.top-r.height/2)/(r.height/2),l=Math.max(1,Math.hypot(x,y));setJoystick({x:x/l,y:y/l})}
+  return <section className="jungle3d-wrap">
+    <div className="jungle3d-head"><div><span className="j3d-eyebrow">OPEN WORLD PIXEL ADVENTURE</span><h2>ETH <span>JUNGLE</span></h2><p>Walk beyond the edge. The jungle keeps growing.</p></div><div className="j3d-coords">X {Math.round(position[0])} · Z {Math.round(position[2])}</div></div>
+    <div className="j3d-gamebar"><div><small>REGION</small><strong>{region}</strong></div><div><small>DISTANCE</small><strong>{distance} m</strong></div><div><small>WORLD</small><strong>ENDLESS</strong></div></div>
+    <div className="jungle3d-stage"><Canvas shadows camera={{position:[0,6,10],fov:52}} dpr={[1,1.5]}><color attach="background" args={['#a6c59a']}/><World input={input} position={position} onPosition={setPosition}/></Canvas>
+      <div className="j3d-hud"><span>WASD / ARROWS MOVE</span><span>SPACE JUMP · SHIFT RUN</span></div>
+      <div className="j3d-objective"><strong>EXPLORE THE WILD</strong><span>Keep walking. New forest areas appear around you.</span></div>
+      <div className="j3d-mobile-controls"><div className="j3d-joystick" onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);stick(e)}} onPointerMove={e=>{if(e.buttons)stick(e)}} onPointerUp={()=>setJoystick({x:0,y:0})} onPointerCancel={()=>setJoystick({x:0,y:0})}><span/></div><div className="j3d-mobile-actions"><button className="j3d-jump" onPointerDown={()=>setInput(v=>({...v,jump:true}))} onPointerUp={()=>setInput(v=>({...v,jump:false}))} onPointerLeave={()=>setInput(v=>({...v,jump:false}))}>JUMP</button><button className="j3d-action" onPointerDown={()=>setMobileSprint(true)} onPointerUp={()=>setMobileSprint(false)} onPointerLeave={()=>setMobileSprint(false)}>RUN</button></div></div>
+    </div>
+    <div className="j3d-bottomline"><span>Explore freely · No borders · New areas load as you travel</span><button onClick={()=>{setPosition([0,0,0]);keys.current={};setJoystick({x:0,y:0})}}>RETURN HOME</button></div>
+    <p className="j3d-note">Exploration prototype. No wallet transaction, entry fee, or ETH payout is enabled.</p>
+  </section>
 }
