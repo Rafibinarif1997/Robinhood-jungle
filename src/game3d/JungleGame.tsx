@@ -1,5 +1,5 @@
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Sky, PointerLockControls } from '@react-three/drei'
+import { Sky } from '@react-three/drei'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import './jungle-game.css'
@@ -29,6 +29,7 @@ function Explorer({ input, setPosition }: { input: Input; setPosition: (p: [numb
   const cameraTarget = useMemo(() => new THREE.Vector3(), [])
   const direction = useMemo(() => new THREE.Vector3(), [])
   const cameraOffset = useMemo(() => new THREE.Vector3(0, 4.1, 7.5), [])
+  const uiClock = useRef(0)
 
   useFrame((state, delta) => {
     if (!root.current) return
@@ -51,7 +52,11 @@ function Explorer({ input, setPosition }: { input: Input; setPosition: (p: [numb
     const desired = cameraTarget.clone().add(cameraOffset)
     state.camera.position.lerp(desired, 1 - Math.exp(-5 * move))
     state.camera.lookAt(cameraTarget.x, cameraTarget.y + 1.25, cameraTarget.z)
-    setPosition([root.current.position.x, root.current.position.y, root.current.position.z])
+    uiClock.current += move
+    if (uiClock.current > 0.15) {
+      uiClock.current = 0
+      setPosition([root.current.position.x, root.current.position.y, root.current.position.z])
+    }
   })
 
   return (
