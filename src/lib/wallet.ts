@@ -2,7 +2,8 @@ import { createAppKit } from '@reown/appkit/react'
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
 import type { AppKitNetwork } from '@reown/appkit/networks'
 import { QueryClient } from '@tanstack/react-query'
-import { createConfig, http, defineChain } from 'wagmi'
+import { createConfig, http } from 'wagmi'
+import { defineChain } from 'viem'
 
 const projectId = import.meta.env.VITE_REOWN_PROJECT_ID?.trim()
 
@@ -21,7 +22,7 @@ const robinhoodTestnet = defineChain({
 
 const networks = [robinhoodTestnet] as [AppKitNetwork, ...AppKitNetwork[]]
 
-let wagmiConfig
+let wagmiConfig: ReturnType<typeof createConfig>
 if (projectId) {
   const adapter = new WagmiAdapter({ projectId, networks })
   wagmiConfig = adapter.wagmiConfig
