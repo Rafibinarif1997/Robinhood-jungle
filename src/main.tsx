@@ -9,7 +9,7 @@ import { wagmiAdapter, queryClient } from './lib/wallet'
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <WagmiProvider config={wagmiAdapter.wagmiConfig}>
+    <WagmiProvider config={wagmiAdapter.wagmiConfig as any}>
       <QueryClientProvider client={queryClient}>
         <App />
       </QueryClientProvider>
