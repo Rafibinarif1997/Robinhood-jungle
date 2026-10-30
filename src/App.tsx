@@ -1,6 +1,5 @@
-import './styles.css'
-import PixelWorld from './game/PixelWorld'
+import SurvivalGame from './game/SurvivalGame'
 
 export default function App() {
-  return <PixelWorld />
+  return <SurvivalGame />
 }
