@@ -1,6 +1,6 @@
 (()=>{'use strict';
 const $=s=>document.querySelector(s),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),rand=n=>{let x=Math.sin(n*127.1+311.7)*43758.5453;return x-Math.floor(x)};
-const cv=$('#world'),ctx=cv.getContext('2d'),keys={},W=1900,H=1400;
+const cv=$('#world'),ctx=cv.getContext('2d'),mini=$('#minimap'),mctx=mini.getContext('2d'),keys={},W=1900,H=1400;
 let saved=null;try{saved=JSON.parse(localStorage.getItem('rj-survival-save')||'null')}catch{}
 const nodes=[];for(let i=0;i<230;i++){let r=rand(i*3+3),kind=r<.4?'tree':r<.59?'berry':r<.76?'rock':r<.9?'bush':'water';nodes.push({x:55+rand(i*3+1)*(W-110),y:55+rand(i*3+2)*(H-110),kind,n:kind==='tree'?3:kind==='rock'?2:kind==='water'?999:2,alive:true})}
 let p=Object.assign({x:W/2,y:H/2,hp:100,hunger:100,thirst:100,stamina:100,wood:0,stone:0,berries:2,day:1,clock:8,xp:0,level:1,axe:false,spear:false,fire:false,dead:false,steps:0},saved||{});
@@ -36,7 +36,7 @@ ctx.fillStyle='#273b29';ctx.beginPath();ctx.ellipse(p.x,p.y+9,13,6,0,0,7);ctx.fi
 ctx.restore();let night=p.clock<6||p.clock>18;if(night){ctx.fillStyle='rgba(6,16,38,.48)';ctx.fillRect(0,0,w,h)}
 ctx.fillStyle='#102519df';ctx.fillRect(12,h-43,Math.min(w-24,340),30);ctx.fillStyle='#eff2dc';ctx.font='10px monospace';ctx.fillText('E GATHER/DRINK  Q EAT  F ATTACK',22,h-24);
 if(t<msgUntil){ctx.fillStyle='#102519e8';ctx.fillRect(w/2-160,13,320,32);ctx.fillStyle='#eff3df';ctx.textAlign='center';ctx.fillText(msg,w/2,34);ctx.textAlign='left'}
-if(t-lastSave>10000){save();lastSave=t}requestAnimationFrame(loop)}
+if(mini){mctx.clearRect(0,0,150,110);mctx.fillStyle='#315b38';mctx.fillRect(0,0,150,110);mctx.fillStyle='#a18d67';mctx.fillRect(0,51,150,5);mctx.fillRect(70,0,5,110);mctx.fillStyle='#397f91';mctx.fillRect(14,11,21,13);for(const n of nodes){if(!n.alive)continue;if(n.kind==='water')continue;mctx.fillStyle=n.kind==='tree'?'#173e28':n.kind==='rock'?'#a7aa98':'#df8b75';mctx.fillRect(n.x/W*150,n.y/H*110,1.5,1.5)}mctx.fillStyle='#f2efbd';mctx.fillRect(p.x/W*150-2,p.y/H*110-2,4,4)}if(t-lastSave>10000){save();lastSave=t}requestAnimationFrame(loop)}
 requestAnimationFrame(loop);
 window.addEventListener('keydown',e=>{let k=e.key.toLowerCase();if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(k))e.preventDefault();keys[k]=true;if(k==='e')gather();if(k==='q')eat();if(k==='f')attack()});
 window.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
