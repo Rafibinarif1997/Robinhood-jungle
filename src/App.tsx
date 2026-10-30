@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
 import WalletConnect from './components/WalletConnect'
+import JungleGame from './game3d/JungleGame'
 
 type Tile = {
   id: number
@@ -353,6 +354,8 @@ export default function App() {
               <button className="icon-button" onClick={resetDemo} title="Reset demo"><RotateCcw size={16} /></button>
             </div>
           </div>
+
+          <JungleGame />
 
           <div className="game-layout">
             <div className="map-panel">
