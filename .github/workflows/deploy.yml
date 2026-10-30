@@ -14,43 +14,50 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     env:
       VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      VITE_REOWN_PROJECT_ID: ${{ vars.VITE_REOWN_PROJECT_ID }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 22
-      
 
-      - name: Check Supabase variable availability
+      - name: Check environment variables
         run: |
-          if [ -n "$VITE_SUPABASE_URL" ]; then
-            echo "SUPABASE_URL_PRESENT=true"
-          else
-            echo "SUPABASE_URL_PRESENT=false"
-          fi
+          test -n "$VITE_SUPABASE_URL" && echo "Supabase URL: OK" || echo "Supabase URL: MISSING"
+          test -n "$VITE_SUPABASE_PUBLISHABLE_KEY" && echo "Supabase key: OK" || echo "Supabase key: MISSING"
+          test -n "$VITE_REOWN_PROJECT_ID" && echo "Reown Project ID: OK" || echo "Reown Project ID: MISSING"
 
-          if [ -n "$VITE_SUPABASE_PUBLISHABLE_KEY" ]; then
-            echo "SUPABASE_KEY_PRESENT=true"
-          else
-            echo "SUPABASE_KEY_PRESENT=false"
-          fi
+      - name: Install dependencies
+        run: npm install
 
-      - run: npm install
-      - run: npm run build
+      - name: Inspect Wagmi dependencies
+        run: |
+          npm ls wagmi @wagmi/core @reown/appkit-adapter-wagmi viem --all || true
+          npm explain @wagmi/core || true
 
-      - uses: actions/upload-pages-artifact@v3
+      - name: Build project
+        run: npm run build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
+
     environment:
       name: github-pages
+
     steps:
-      - uses: actions/deploy-pages@v4
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
