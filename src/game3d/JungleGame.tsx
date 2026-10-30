@@ -23,13 +23,14 @@ function Tree({ position, scale = 1 }: { position: [number, number, number]; sca
   )
 }
 
-function Explorer({ input, setPosition }: { input: Input; setPosition: (p: [number, number, number]) => void }) {
+function Explorer({ input, setPosition, obstacles }: { input: Input; setPosition: (p: [number, number, number]) => void; obstacles: [number, number, number][] }) {
   const root = useRef<THREE.Group>(null)
   const velocity = useRef(0)
   const cameraTarget = useMemo(() => new THREE.Vector3(), [])
   const direction = useMemo(() => new THREE.Vector3(), [])
   const cameraOffset = useMemo(() => new THREE.Vector3(0, 4.1, 7.5), [])
   const uiClock = useRef(0)
+  const wasJumping = useRef(false)
 
   useFrame((state, delta) => {
     if (!root.current) return
@@ -38,13 +39,19 @@ function Explorer({ input, setPosition }: { input: Input; setPosition: (p: [numb
     const speed = 4.2
     direction.set(input.side, 0, input.forward).normalize()
     if (moving) {
-      root.current.position.x += direction.x * speed * move
-      root.current.position.z += direction.z * speed * move
+      const nextX = root.current.position.x + direction.x * speed * move
+      const nextZ = root.current.position.z + direction.z * speed * move
+      const blocked = obstacles.some(([ox, , oz]) => Math.hypot(nextX - ox, nextZ - oz) < 0.9)
+      if (!blocked) {
+        root.current.position.x = nextX
+        root.current.position.z = nextZ
+      }
       root.current.rotation.y = Math.atan2(direction.x, direction.z)
     }
     root.current.position.x = THREE.MathUtils.clamp(root.current.position.x, -23, 23)
     root.current.position.z = THREE.MathUtils.clamp(root.current.position.z, -23, 23)
-    if (input.jump && root.current.position.y <= 0.02) velocity.current = 6
+    if (input.jump && !wasJumping.current && root.current.position.y <= 0.02) velocity.current = 6
+    wasJumping.current = input.jump
     velocity.current -= 16 * move
     root.current.position.y = Math.max(0, root.current.position.y + velocity.current * move)
     if (root.current.position.y === 0) velocity.current = 0
@@ -103,7 +110,7 @@ function World({ input, setPosition }: { input: Input; setPosition: (p: [number,
         <mesh position={[0, 0.3, 0]} castShadow><dodecahedronGeometry args={[1.1, 0]} /><meshStandardMaterial color="#68766a" roughness={1} /></mesh>
         <mesh position={[2, 0.22, -1.3]} castShadow><dodecahedronGeometry args={[0.8, 0]} /><meshStandardMaterial color="#526653" roughness={1} /></mesh>
       </group>
-      <Explorer input={input} setPosition={setPosition} />
+      <Explorer input={input} setPosition={setPosition} obstacles={[...trees, [8, 0, -8], [10, 0, -9.3]]} />
     </>
   )
 }
