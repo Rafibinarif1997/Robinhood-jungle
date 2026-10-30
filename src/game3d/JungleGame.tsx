@@ -1,6 +1,7 @@
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Sky } from '@react-three/drei'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { PointerEvent } from 'react'
 import * as THREE from 'three'
 import './jungle-game.css'
 
@@ -140,7 +141,7 @@ export default function JungleGame() {
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.clearInterval(timer) }
   }, [joystick])
 
-  const moveStick = (e: React.PointerEvent<HTMLDivElement>) => {
+  const moveStick = (e: PointerEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
     const dx = (e.clientX - rect.left - rect.width / 2) / (rect.width / 2)
     const dy = (e.clientY - rect.top - rect.height / 2) / (rect.height / 2)
