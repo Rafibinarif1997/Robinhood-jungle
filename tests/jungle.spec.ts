@@ -22,13 +22,13 @@ async function openApp(page: import('@playwright/test').Page) {
   expect(pageErrors, 'The page should not throw uncaught runtime errors').toEqual([])
 }
 
-test('3D jungle page renders the explorer scene and objectives', async ({ page }) => {
+test('open pixel jungle renders the endless explorer world', async ({ page }) => {
   await openApp(page)
   await expect(page.locator('.jungle3d-wrap')).toBeVisible()
   await expect(page.locator('.jungle3d-head h2')).toContainText('ETH JUNGLE')
   await expect(page.locator('.jungle3d-stage canvas')).toBeVisible()
-  await expect(page.locator('.j3d-objective')).toContainText('JUNGLE EXPEDITION')
-  await expect(page.locator('.j3d-gamebar')).toContainText('0/3')
+  await expect(page.locator('.j3d-objective')).toContainText('EXPLORE THE WILD')
+  await expect(page.locator('.j3d-gamebar')).toContainText('ENDLESS')
 })
 
 test('mobile layout exposes touch controls', async ({ page }, testInfo) => {
