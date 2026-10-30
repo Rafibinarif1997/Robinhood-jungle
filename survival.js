@@ -3,7 +3,8 @@ const $=s=>document.querySelector(s),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),ra
 const cv=$('#world'),ctx=cv.getContext('2d'),mini=$('#minimap'),mctx=mini.getContext('2d'),keys={},W=1900,H=1400;
 let saved=null;try{saved=JSON.parse(localStorage.getItem('rj-survival-save')||'null')}catch{}
 const nodes=[];for(let i=0;i<230;i++){let r=rand(i*3+3),kind=r<.4?'tree':r<.59?'berry':r<.76?'rock':r<.9?'bush':'water';nodes.push({x:55+rand(i*3+1)*(W-110),y:55+rand(i*3+2)*(H-110),kind,n:kind==='tree'?3:kind==='rock'?2:kind==='water'?999:2,alive:true})}
-if(saved&&Array.isArray(saved.nodes)&&saved.nodes.length)nodes.splice(0,nodes.length,...saved.nodes);\nlet p=Object.assign({x:W/2,y:H/2,hp:100,hunger:100,thirst:100,stamina:100,wood:0,stone:0,berries:2,day:1,clock:8,xp:0,level:1,axe:false,spear:false,fire:false,dead:false,steps:0},saved||{});
+if(saved&&Array.isArray(saved.nodes)&&saved.nodes.length)nodes.splice(0,nodes.length,...saved.nodes);
+let p=Object.assign({x:W/2,y:H/2,hp:100,hunger:100,thirst:100,stamina:100,wood:0,stone:0,berries:2,day:1,clock:8,xp:0,level:1,axe:false,spear:false,fire:false,dead:false,steps:0},saved||{});
 let beasts=Array.from({length:8},(_,i)=>({x:120+rand(i+90)*(W-240),y:120+rand(i+190)*(H-240),hp:45,attack:0}));
 if(saved&&Array.isArray(saved.beasts))beasts=saved.beasts;
 let msg='Find berries and water before nightfall.',msgUntil=0,last=0,lastSave=0,cam={x:0,y:0},tab='tips';
