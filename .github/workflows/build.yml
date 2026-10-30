@@ -4,7 +4,10 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, feature/3d-jungle-prototype]
+    branches: [main]
+
+permissions:
+  contents: write
 
 jobs:
   build-and-browser-test:
@@ -17,19 +20,24 @@ jobs:
         with:
           node-version: 20
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+      - name: Restore Vite source entry
+        run: cp src/index.template.html index.html
       - name: Build application
         run: npm run build
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
       - name: Run browser smoke tests
         run: npm run test:e2e
-
-      - name: Upload browser failure diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: jungle-playwright-diagnostics
-          path: test-results/
-          if-no-files-found: ignore
-          retention-days: 5
+      - name: Publish built site to repository root
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          rm -rf assets
+          cp -a dist/. .
+          git add -f index.html assets
+          if ! git diff --cached --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "Publish static game to main root for GitHub Pages"
+            git push
+          fi
