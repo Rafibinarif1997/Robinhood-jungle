@@ -114,6 +114,46 @@ function World({ input, setPosition, setNearby, onFound, found }: { input: Input
         <circleGeometry args={[4.5, 48]} />
         <meshStandardMaterial color="#9b8051" roughness={1} />
       </mesh>
+      {/* A shallow river cuts through the western side of the clearing. */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-6, -0.025, 0]} receiveShadow>
+        <planeGeometry args={[4.2, 54, 1, 24]} />
+        <meshStandardMaterial color="#246f78" roughness={0.22} metalness={0.12} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-8.2, -0.035, 0]}>
+        <planeGeometry args={[0.45, 54]} />
+        <meshStandardMaterial color="#526d3d" roughness={1} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-3.8, -0.035, 0]}>
+        <planeGeometry args={[0.45, 54]} />
+        <meshStandardMaterial color="#526d3d" roughness={1} />
+      </mesh>
+      {/* Timber crossing: deck, individual boards, and simple hand rails. */}
+      <group position={[-6, 0.28, 0]}>
+        <mesh position={[0, 0, 0]} castShadow receiveShadow>
+          <boxGeometry args={[6.1, 0.22, 1.65]} />
+          <meshStandardMaterial color="#76502f" roughness={0.95} />
+        </mesh>
+        {Array.from({ length: 11 }, (_, i) => (
+          <mesh key={i} position={[-2.7 + i * 0.54, 0.13, 0]} castShadow>
+            <boxGeometry args={[0.48, 0.07, 1.72]} />
+            <meshStandardMaterial color={i % 2 ? '#9a7044' : '#86603a'} roughness={1} />
+          </mesh>
+        ))}
+        {[-0.72, 0.72].map((z) => (
+          <group key={z}>
+            {[-2.65, 0, 2.65].map((x) => (
+              <mesh key={x} position={[x, 0.72, z]} castShadow>
+                <boxGeometry args={[0.16, 1.25, 0.16]} />
+                <meshStandardMaterial color="#503923" roughness={1} />
+              </mesh>
+            ))}
+            <mesh position={[0, 1.22, z]} castShadow>
+              <boxGeometry args={[5.55, 0.16, 0.16]} />
+              <meshStandardMaterial color="#65482d" roughness={1} />
+            </mesh>
+          </group>
+        ))}
+      </group>
       {trees.map((p, i) => <Tree key={i} position={p} scale={0.8 + (i % 4) * 0.16} />)}
       <group position={[-10, 0, -10]}>
         <mesh position={[0, 0.55, 0]} castShadow><boxGeometry args={[2.2, 1.1, 1.8]} /><meshStandardMaterial color="#777d68" roughness={1} /></mesh>
