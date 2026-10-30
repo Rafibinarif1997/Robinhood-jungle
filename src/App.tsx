@@ -10,6 +10,19 @@ import { supabase } from './lib/supabase'
 type Tile = {
   id: number
   kind: 'forest' | 'path' | 'water' | 'ruins' | 'cave' | 'shrine' | 'clearing'
+
+import { useEffect, useMemo, useState } from 'react'
+import {
+  Compass, Map, Sparkles, Trophy, Search, LockKeyhole,
+  Trees, Footprints, CircleHelp, ChevronRight, RotateCcw, ShieldCheck,
+  Menu, X, Clock3, Flame, Gem, Leaf, Mountain, TreePine
+} from 'lucide-react'
+import { supabase } from './lib/supabase'
+import WalletConnect from './components/WalletConnect'
+
+type Tile = {
+  id: number
+  kind: 'forest' | 'path' | 'water' | 'ruins' | 'cave' | 'shrine' | 'clearing'
   discovered: boolean
   searched: boolean
 }
@@ -87,7 +100,6 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'map' | 'clues' | 'winners'>('map')
   const [searchedCount, setSearchedCount] = useState(0)
   const [notice, setNotice] = useState('')
-  const [wallet, setWallet] = useState('')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [clueUnlocked, setClueUnlocked] = useState(1)
 
@@ -220,16 +232,6 @@ export default function App() {
     setNotice('Demo reset. A new expedition begins!')
   }
 
-  function connectDemoWallet() {
-    if (wallet) {
-      setWallet('')
-      setNotice('Demo wallet disconnected.')
-    } else {
-      setWallet('0x71C...9A42')
-      setNotice('Demo wallet only. No real wallet was connected.')
-    }
-  }
-
   const prize = formatPrize(hunt?.prize_wei)
   const isLive = hunt?.status === 'live'
 
@@ -263,10 +265,14 @@ export default function App() {
           <span className="network-pill">
             <span className="status-dot" /> RH TESTNET
           </span>
-          <button className={wallet ? 'wallet-button connected' : 'wallet-button'} onClick={connectDemoWallet}>
-            <Wallet size={16} /> {wallet || 'Connect Wallet'}
-          </button>
-          <button className="mobile-menu-btn" onClick={() => setShowMobileMenu(v => !v)} aria-label="Toggle menu">
+
+          <WalletConnect />
+
+          <button
+            className="mobile-menu-btn"
+            onClick={() => setShowMobileMenu(v => !v)}
+            aria-label="Toggle menu"
+          >
             {showMobileMenu ? <X /> : <Menu />}
           </button>
         </div>
@@ -549,8 +555,8 @@ export default function App() {
       <div className="demo-disclaimer">
         <ShieldCheck size={15} />
         <span>
-          <strong>DEMO ONLY:</strong> No real wallet connection, blockchain transaction,
-          winner verification, or ETH payout is enabled yet.
+          <strong>EXPERIMENTAL:</strong> Wallet connection enabled.
+          Blockchain transactions, winner verification, and ETH payouts are not enabled yet.
         </span>
       </div>
     </div>
