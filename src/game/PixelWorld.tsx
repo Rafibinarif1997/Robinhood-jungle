@@ -40,7 +40,7 @@ export default function PixelWorld(){
  useEffect(()=>{const canvas=canvasRef.current;if(!canvas)return;const ctx=canvas.getContext('2d');if(!ctx)return;let raf=0,last=0,steps=0,lastHud=0
  const resize=()=>{const r=canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.round(r.width*dpr);canvas.height=Math.round(r.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0)};resize();const ro=new ResizeObserver(resize);ro.observe(canvas)
  const loop=(time:number)=>{const dt=Math.min((time-last)/1000||0,.04);last=time;const p=player.current;let dx=(keys.current.d||keys.current.arrowright?1:0)-(keys.current.a||keys.current.arrowleft?1:0)+joystick.x,dy=(keys.current.s||keys.current.arrowdown?1:0)-(keys.current.w||keys.current.arrowup?1:0)+joystick.y;const len=Math.hypot(dx,dy);if(len>1){dx/=len;dy/=len}const sprint=keys.current.shift;const speed=sprint?190:126;const nx=p.x+dx*speed*dt,ny=p.y+dy*speed*dt
- const blocked=(x:number,y:number)=>obstacles.some(o=>Math.hypot(x-o.x,y-o.y)<o.r+8)
+ const blocked=(x:number,y:number)=>obstacles.some(o=>Math.hypot(x-o.x,y-o.y)<o.r+8)||Math.hypot(x-car.current.x,y-car.current.y)<31||Math.hypot(x-horse.current.x,y-horse.current.y)<25
  if(!blocked(nx,p.y))p.x=clamp(nx,24,WORLD_W*TILE-24);if(!blocked(p.x,ny))p.y=clamp(ny,24,WORLD_H*TILE-24)
  if(dx||dy){p.walk+=dt*(sprint?17:11);p.face=Math.atan2(dy,dx);steps+=dt*(sprint?1.6:1)}
  if(keys.current[' ']&&p.jump===0){p.jumpV=310;p.jump=1}if(p.jump>0){p.jump+=p.jumpV*dt;p.jumpV-=850*dt;if(p.jump<0){p.jump=0;p.jumpV=0}}
