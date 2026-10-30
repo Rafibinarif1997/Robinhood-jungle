@@ -22,7 +22,7 @@ const robinhoodTestnet = defineChain({
 
 const networks = [robinhoodTestnet] as [AppKitNetwork, ...AppKitNetwork[]]
 
-let wagmiConfig: ReturnType<typeof createConfig>
+let wagmiConfig: any
 if (projectId) {
   const adapter = new WagmiAdapter({ projectId, networks })
   wagmiConfig = adapter.wagmiConfig
